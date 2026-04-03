@@ -1,0 +1,8 @@
+.DS_Store
+.local/
+.build/
+.swiftpm/
+OndeFramework.xcframework/
+OndeFramework.xcframework.zip
+
+.zed
