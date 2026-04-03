@@ -8,35 +8,35 @@ import Foundation
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
 #if canImport(ondeFFI)
-    import ondeFFI
+import ondeFFI
 #endif
 
-extension RustBuffer {
+fileprivate extension RustBuffer {
     // Allocate a new buffer, copying the contents of a `UInt8` array.
-    fileprivate init(bytes: [UInt8]) {
+    init(bytes: [UInt8]) {
         let rbuf = bytes.withUnsafeBufferPointer { ptr in
             RustBuffer.from(ptr)
         }
         self.init(capacity: rbuf.capacity, len: rbuf.len, data: rbuf.data)
     }
 
-    fileprivate static func empty() -> RustBuffer {
-        RustBuffer(capacity: 0, len: 0, data: nil)
+    static func empty() -> RustBuffer {
+        RustBuffer(capacity: 0, len:0, data: nil)
     }
 
-    fileprivate static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
+    static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
         try! rustCall { ffi_onde_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
     }
 
     // Frees the buffer in place.
     // The buffer must not be used after this is called.
-    fileprivate func deallocate() {
+    func deallocate() {
         try! rustCall { ffi_onde_rustbuffer_free(self, $0) }
     }
 }
 
-extension ForeignBytes {
-    fileprivate init(bufferPointer: UnsafeBufferPointer<UInt8>) {
+fileprivate extension ForeignBytes {
+    init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
 }
@@ -48,8 +48,8 @@ extension ForeignBytes {
 // Helper classes/extensions that don't change.
 // Someday, this will be in a library of its own.
 
-extension Data {
-    fileprivate init(rustBuffer: RustBuffer) {
+fileprivate extension Data {
+    init(rustBuffer: RustBuffer) {
         self.init(
             bytesNoCopy: rustBuffer.data!,
             count: Int(rustBuffer.len),
@@ -72,16 +72,14 @@ extension Data {
 //
 // Instead, the read() method and these helper functions input a tuple of data
 
-private func createReader(data: Data) -> (data: Data, offset: Data.Index) {
+fileprivate func createReader(data: Data) -> (data: Data, offset: Data.Index) {
     (data: data, offset: 0)
 }
 
 // Reads an integer at the current offset, in big-endian order, and advances
 // the offset on success. Throws if reading the integer would move the
 // offset past the end of the buffer.
-private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws
-    -> T
-{
+fileprivate func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
     let range = reader.offset..<reader.offset + MemoryLayout<T>.size
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
@@ -92,17 +90,15 @@ private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: 
         return value as! T
     }
     var value: T = 0
-    let _ = withUnsafeMutableBytes(of: &value, { reader.data.copyBytes(to: $0, from: range) })
+    let _ = withUnsafeMutableBytes(of: &value, { reader.data.copyBytes(to: $0, from: range)})
     reader.offset = range.upperBound
     return value.bigEndian
 }
 
 // Reads an arbitrary number of bytes, to be used to read
 // raw bytes, this is useful when lifting strings
-private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws
-    -> [UInt8]
-{
-    let range = reader.offset..<(reader.offset + count)
+fileprivate func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> Array<UInt8> {
+    let range = reader.offset..<(reader.offset+count)
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
@@ -115,17 +111,17 @@ private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: 
 }
 
 // Reads a float at the current offset.
-private func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
+fileprivate func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
     return Float(bitPattern: try readInt(&reader))
 }
 
 // Reads a float at the current offset.
-private func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
+fileprivate func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
     return Double(bitPattern: try readInt(&reader))
 }
 
 // Indicates if the offset has reached the end of the buffer.
-private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
+fileprivate func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
     return reader.offset < reader.data.count
 }
 
@@ -133,12 +129,11 @@ private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
 // struct, but we use standalone functions instead in order to make external
 // types work.  See the above discussion on Readers for details.
 
-private func createWriter() -> [UInt8] {
+fileprivate func createWriter() -> [UInt8] {
     return []
 }
 
-private func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S)
-where S: Sequence, S.Element == UInt8 {
+fileprivate func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
     writer.append(contentsOf: byteArr)
 }
 
@@ -146,22 +141,22 @@ where S: Sequence, S.Element == UInt8 {
 //
 // Warning: make sure what you are trying to write
 // is in the correct type!
-private func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
+fileprivate func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
     var value = value.bigEndian
     withUnsafeBytes(of: &value) { writer.append(contentsOf: $0) }
 }
 
-private func writeFloat(_ writer: inout [UInt8], _ value: Float) {
+fileprivate func writeFloat(_ writer: inout [UInt8], _ value: Float) {
     writeInt(&writer, value.bitPattern)
 }
 
-private func writeDouble(_ writer: inout [UInt8], _ value: Double) {
+fileprivate func writeDouble(_ writer: inout [UInt8], _ value: Double) {
     writeInt(&writer, value.bitPattern)
 }
 
 // Protocol for types that transfer other types across the FFI. This is
 // analogous to the Rust trait of the same name.
-private protocol FfiConverter {
+fileprivate protocol FfiConverter {
     associatedtype FfiType
     associatedtype SwiftType
 
@@ -172,19 +167,19 @@ private protocol FfiConverter {
 }
 
 // Types conforming to `Primitive` pass themselves directly over the FFI.
-private protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType {}
+fileprivate protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType { }
 
 extension FfiConverterPrimitive {
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ value: FfiType) throws -> SwiftType {
         return value
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ value: SwiftType) -> FfiType {
         return value
     }
@@ -192,12 +187,12 @@ extension FfiConverterPrimitive {
 
 // Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
 // Used for complex types where it's hard to write a custom lift/lower.
-private protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
+fileprivate protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
 
 extension FfiConverterRustBuffer {
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ buf: RustBuffer) throws -> SwiftType {
         var reader = createReader(data: Data(rustBuffer: buf))
         let value = try read(from: &reader)
@@ -208,18 +203,18 @@ extension FfiConverterRustBuffer {
         return value
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ value: SwiftType) -> RustBuffer {
-        var writer = createWriter()
-        write(value, into: &writer)
-        return RustBuffer(bytes: writer)
+          var writer = createWriter()
+          write(value, into: &writer)
+          return RustBuffer(bytes: writer)
     }
 }
 // An error type for FFI errors. These errors occur at the UniFFI level, not
 // the library level.
-private enum UniffiInternalError: LocalizedError {
+fileprivate enum UniffiInternalError: LocalizedError {
     case bufferOverflow
     case incompleteData
     case unexpectedOptionalTag
@@ -232,8 +227,7 @@ private enum UniffiInternalError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .bufferOverflow:
-            return "Reading the requested value would read past the end of the buffer"
+        case .bufferOverflow: return "Reading the requested value would read past the end of the buffer"
         case .incompleteData: return "The buffer still has data after lifting its containing value"
         case .unexpectedOptionalTag: return "Unexpected optional tag; should be 0 or 1"
         case .unexpectedEnumCase: return "Raw enum value doesn't match any cases"
@@ -241,26 +235,26 @@ private enum UniffiInternalError: LocalizedError {
         case .unexpectedRustCallStatusCode: return "Unexpected RustCallStatus code"
         case .unexpectedRustCallError: return "CALL_ERROR but no errorClass specified"
         case .unexpectedStaleHandle: return "The object in the handle map has been dropped already"
-        case .rustPanic(let message): return message
+        case let .rustPanic(message): return message
         }
     }
 }
 
-extension NSLock {
-    fileprivate func withLock<T>(f: () throws -> T) rethrows -> T {
+fileprivate extension NSLock {
+    func withLock<T>(f: () throws -> T) rethrows -> T {
         self.lock()
         defer { self.unlock() }
         return try f()
     }
 }
 
-private let CALL_SUCCESS: Int8 = 0
-private let CALL_ERROR: Int8 = 1
-private let CALL_UNEXPECTED_ERROR: Int8 = 2
-private let CALL_CANCELLED: Int8 = 3
+fileprivate let CALL_SUCCESS: Int8 = 0
+fileprivate let CALL_ERROR: Int8 = 1
+fileprivate let CALL_UNEXPECTED_ERROR: Int8 = 2
+fileprivate let CALL_CANCELLED: Int8 = 3
 
-extension RustCallStatus {
-    fileprivate init() {
+fileprivate extension RustCallStatus {
+    init() {
         self.init(
             code: CALL_SUCCESS,
             errorBuf: RustBuffer.init(
@@ -279,8 +273,7 @@ private func rustCall<T>(_ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
 
 private func rustCallWithError<T, E: Swift.Error>(
     _ errorHandler: @escaping (RustBuffer) throws -> E,
-    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
-) throws -> T {
+    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T) throws -> T {
     try makeRustCall(callback, errorHandler: errorHandler)
 }
 
@@ -300,40 +293,40 @@ private func uniffiCheckCallStatus<E: Swift.Error>(
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws {
     switch callStatus.code {
-    case CALL_SUCCESS:
-        return
+        case CALL_SUCCESS:
+            return
 
-    case CALL_ERROR:
-        if let errorHandler = errorHandler {
-            throw try errorHandler(callStatus.errorBuf)
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.unexpectedRustCallError
-        }
+        case CALL_ERROR:
+            if let errorHandler = errorHandler {
+                throw try errorHandler(callStatus.errorBuf)
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.unexpectedRustCallError
+            }
 
-    case CALL_UNEXPECTED_ERROR:
-        // When the rust code sees a panic, it tries to construct a RustBuffer
-        // with the message.  But if that code panics, then it just sends back
-        // an empty buffer.
-        if callStatus.errorBuf.len > 0 {
-            throw UniffiInternalError.rustPanic(try FfiConverterString.lift(callStatus.errorBuf))
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.rustPanic("Rust panic")
-        }
+        case CALL_UNEXPECTED_ERROR:
+            // When the rust code sees a panic, it tries to construct a RustBuffer
+            // with the message.  But if that code panics, then it just sends back
+            // an empty buffer.
+            if callStatus.errorBuf.len > 0 {
+                throw UniffiInternalError.rustPanic(try FfiConverterString.lift(callStatus.errorBuf))
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.rustPanic("Rust panic")
+            }
 
-    case CALL_CANCELLED:
-        fatalError("Cancellation not supported yet")
+        case CALL_CANCELLED:
+            fatalError("Cancellation not supported yet")
 
-    default:
-        throw UniffiInternalError.unexpectedRustCallStatusCode
+        default:
+            throw UniffiInternalError.unexpectedRustCallStatusCode
     }
 }
 
 private func uniffiTraitInterfaceCall<T>(
     callStatus: UnsafeMutablePointer<RustCallStatus>,
     makeCall: () throws -> T,
-    writeReturn: (T) -> Void
+    writeReturn: (T) -> ()
 ) {
     do {
         try writeReturn(makeCall())
@@ -346,7 +339,7 @@ private func uniffiTraitInterfaceCall<T>(
 private func uniffiTraitInterfaceCallWithError<T, E>(
     callStatus: UnsafeMutablePointer<RustCallStatus>,
     makeCall: () throws -> T,
-    writeReturn: (T) -> Void,
+    writeReturn: (T) -> (),
     lowerError: (E) -> RustBuffer
 ) {
     do {
@@ -359,12 +352,12 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-// Initial value and increment amount for handles.
+// Initial value and increment amount for handles. 
 // These ensure that SWIFT handles always have the lowest bit set
-private let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
-private let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
+fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
+fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
 
-private final class UniffiHandleMap<T>: @unchecked Sendable {
+fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
     // All mutation happens with this lock held, which is why we implement @unchecked Sendable.
     private let lock = NSLock()
     private var map: [UInt64: T] = [:]
@@ -384,7 +377,7 @@ private final class UniffiHandleMap<T>: @unchecked Sendable {
         return handle
     }
 
-    func get(handle: UInt64) throws -> T {
+     func get(handle: UInt64) throws -> T {
         try lock.withLock {
             guard let obj = map[handle] else {
                 throw UniffiInternalError.unexpectedStaleHandle
@@ -393,7 +386,7 @@ private final class UniffiHandleMap<T>: @unchecked Sendable {
         }
     }
 
-    func clone(handle: UInt64) throws -> UInt64 {
+     func clone(handle: UInt64) throws -> UInt64 {
         try lock.withLock {
             guard let obj = map[handle] else {
                 throw UniffiInternalError.unexpectedStaleHandle
@@ -413,9 +406,12 @@ private final class UniffiHandleMap<T>: @unchecked Sendable {
     }
 
     var count: Int {
-        map.count
+        get {
+            map.count
+        }
     }
 }
+
 
 // Public interface members begin here.
 // Magic number for the Rust proxy to call using the same mechanism as every other method,
@@ -427,9 +423,9 @@ private let UNIFFI_CALLBACK_ERROR: Int32 = 1
 private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterUInt8: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
     typealias FfiType = UInt8
     typealias SwiftType = UInt8
 
@@ -443,9 +439,9 @@ private struct FfiConverterUInt8: FfiConverterPrimitive {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterUInt64: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
 
@@ -459,9 +455,9 @@ private struct FfiConverterUInt64: FfiConverterPrimitive {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterFloat: FfiConverterPrimitive {
+fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
 
@@ -475,9 +471,9 @@ private struct FfiConverterFloat: FfiConverterPrimitive {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterDouble: FfiConverterPrimitive {
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
 
@@ -491,9 +487,9 @@ private struct FfiConverterDouble: FfiConverterPrimitive {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterBool: FfiConverter {
+fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
 
@@ -515,9 +511,9 @@ private struct FfiConverterBool: FfiConverter {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterString: FfiConverter {
+fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
 
@@ -555,52 +551,56 @@ private struct FfiConverterString: FfiConverter {
     }
 }
 
-/// On-device LLM chat inference engine — UniFFI-exported wrapper.
-///
-/// This is the primary entry point for Swift / Kotlin consumers.  It wraps
-/// [`ChatEngine`] with FFI-safe method signatures (no generics, no Rust
-/// channels, concrete `String` parameters).
-///
-/// Construct with [`OndeChatEngine::new()`].  The engine starts with no
-/// model loaded — call [`load_gguf_model`] or [`load_default_model`] first.
-public protocol OndeChatEngineProtocol: AnyObject, Sendable {
 
+
+
+/**
+ * On-device LLM chat inference engine — UniFFI-exported wrapper.
+ *
+ * This is the primary entry point for Swift / Kotlin consumers.  It wraps
+ * [`ChatEngine`] with FFI-safe method signatures (no generics, no Rust
+ * channels, concrete `String` parameters).
+ *
+ * Construct with [`OndeChatEngine::new()`].  The engine starts with no
+ * model loaded — call [`load_gguf_model`] or [`load_default_model`] first.
+ */
+public protocol OndeChatEngineProtocol: AnyObject, Sendable {
+    
     /**
      * Clear the conversation history but keep the model loaded.
      *
      * Returns the number of turns that were removed.
      */
-    func clearHistory() async -> UInt64
-
+    func clearHistory() async  -> UInt64
+    
     /**
      * Clear the system prompt.
      */
-    func clearSystemPrompt() async
-
+    func clearSystemPrompt() async 
+    
     /**
      * Run inference on an explicit list of messages WITHOUT modifying the
      * engine's internal history.
      *
      * Useful for one-shot prompts (e.g. prompt enhancement).
      */
-    func generate(messages: [ChatMessage], sampling: SamplingConfig?) async throws
-        -> InferenceResult
-
+    func generate(messages: [ChatMessage], sampling: SamplingConfig?) async throws  -> InferenceResult
+    
     /**
      * Get a copy of the full conversation history.
      */
-    func history() async -> [ChatMessage]
-
+    func history() async  -> [ChatMessage]
+    
     /**
      * Get a snapshot of the engine's current state.
      */
-    func info() async -> EngineInfo
-
+    func info() async  -> EngineInfo
+    
     /**
      * Check whether a model is currently loaded.
      */
-    func isLoaded() async -> Bool
-
+    func isLoaded() async  -> Bool
+    
     /**
      * Load the platform-appropriate default model.
      *
@@ -609,8 +609,8 @@ public protocol OndeChatEngineProtocol: AnyObject, Sendable {
      *
      * Returns the wall-clock loading time in seconds.
      */
-    func loadDefaultModel(systemPrompt: String?, sampling: SamplingConfig?) async throws -> Double
-
+    func loadDefaultModel(systemPrompt: String?, sampling: SamplingConfig?) async throws  -> Double
+    
     /**
      * Load a GGUF model into the engine.
      *
@@ -618,56 +618,57 @@ public protocol OndeChatEngineProtocol: AnyObject, Sendable {
      *
      * Returns the wall-clock loading time in seconds.
      */
-    func loadGgufModel(config: GgufModelConfig, systemPrompt: String?, sampling: SamplingConfig?)
-        async throws -> Double
-
+    func loadGgufModel(config: GgufModelConfig, systemPrompt: String?, sampling: SamplingConfig?) async throws  -> Double
+    
     /**
      * Append a message to history without running inference.
      */
-    func pushHistory(message: ChatMessage) async
-
+    func pushHistory(message: ChatMessage) async 
+    
     /**
      * Send a user message and receive a complete assistant reply.
      *
      * The user message and assistant reply are automatically appended to
      * the conversation history on success.
      */
-    func sendMessage(message: String) async throws -> InferenceResult
-
+    func sendMessage(message: String) async throws  -> InferenceResult
+    
     /**
      * Replace the sampling configuration.
      */
-    func setSampling(sampling: SamplingConfig) async
-
+    func setSampling(sampling: SamplingConfig) async 
+    
     /**
      * Set or replace the system prompt.
      */
-    func setSystemPrompt(prompt: String) async
-
+    func setSystemPrompt(prompt: String) async 
+    
     /**
      * Unload the current model, freeing all memory.
      *
      * Returns the display name of the model that was unloaded, or `nil`
      * if no model was loaded.
      */
-    func unloadModel() async -> String?
-
+    func unloadModel() async  -> String?
+    
 }
-/// On-device LLM chat inference engine — UniFFI-exported wrapper.
-///
-/// This is the primary entry point for Swift / Kotlin consumers.  It wraps
-/// [`ChatEngine`] with FFI-safe method signatures (no generics, no Rust
-/// channels, concrete `String` parameters).
-///
-/// Construct with [`OndeChatEngine::new()`].  The engine starts with no
-/// model loaded — call [`load_gguf_model`] or [`load_default_model`] first.
+/**
+ * On-device LLM chat inference engine — UniFFI-exported wrapper.
+ *
+ * This is the primary entry point for Swift / Kotlin consumers.  It wraps
+ * [`ChatEngine`] with FFI-safe method signatures (no generics, no Rust
+ * channels, concrete `String` parameters).
+ *
+ * Construct with [`OndeChatEngine::new()`].  The engine starts with no
+ * model loaded — call [`load_gguf_model`] or [`load_default_model`] first.
+ */
 open class OndeChatEngine: OndeChatEngineProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
 
     /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public struct NoHandle {
         public init() {}
     }
@@ -675,9 +676,9 @@ open class OndeChatEngine: OndeChatEngineProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     required public init(unsafeFromHandle handle: UInt64) {
         self.handle = handle
     }
@@ -687,31 +688,30 @@ open class OndeChatEngine: OndeChatEngineProtocol, @unchecked Sendable {
     //
     // - Warning:
     //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public init(noHandle: NoHandle) {
         self.handle = 0
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_onde_fn_clone_ondechatengine(self.handle, $0) }
     }
     /**
      * Create a new engine with no model loaded.
      */
-    public convenience init() {
-        let handle =
-            try! rustCall {
-                uniffi_onde_fn_constructor_ondechatengine_new(
-                    $0
-                )
-            }
-        self.init(unsafeFromHandle: handle)
-    }
+public convenience init() {
+    let handle =
+        try! rustCall() {
+    uniffi_onde_fn_constructor_ondechatengine_new($0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
 
     deinit {
         if handle == 0 {
@@ -722,139 +722,139 @@ open class OndeChatEngine: OndeChatEngineProtocol, @unchecked Sendable {
         try! rustCall { uniffi_onde_fn_free_ondechatengine(handle, $0) }
     }
 
+    
+
+    
     /**
      * Clear the conversation history but keep the model loaded.
      *
      * Returns the number of turns that were removed.
      */
-    open func clearHistory() async -> UInt64 {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_clear_history(
-                        self.uniffiCloneHandle()
-
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_u64,
-                completeFunc: ffi_onde_rust_future_complete_u64,
-                freeFunc: ffi_onde_rust_future_free_u64,
-                liftFunc: FfiConverterUInt64.lift,
-                errorHandler: nil
-
-            )
-    }
-
+open func clearHistory()async  -> UInt64  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_clear_history(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_u64,
+            completeFunc: ffi_onde_rust_future_complete_u64,
+            freeFunc: ffi_onde_rust_future_free_u64,
+            liftFunc: FfiConverterUInt64.lift,
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Clear the system prompt.
      */
-    open func clearSystemPrompt() async {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_clear_system_prompt(
-                        self.uniffiCloneHandle()
-
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_void,
-                completeFunc: ffi_onde_rust_future_complete_void,
-                freeFunc: ffi_onde_rust_future_free_void,
-                liftFunc: { $0 },
-                errorHandler: nil
-
-            )
-    }
-
+open func clearSystemPrompt()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_clear_system_prompt(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_void,
+            completeFunc: ffi_onde_rust_future_complete_void,
+            freeFunc: ffi_onde_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Run inference on an explicit list of messages WITHOUT modifying the
      * engine's internal history.
      *
      * Useful for one-shot prompts (e.g. prompt enhancement).
      */
-    open func generate(messages: [ChatMessage], sampling: SamplingConfig?) async throws
-        -> InferenceResult
-    {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_generate(
-                        self.uniffiCloneHandle(),
-                        FfiConverterSequenceTypeChatMessage.lower(messages),
-                        FfiConverterOptionTypeSamplingConfig.lower(sampling)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_rust_buffer,
-                completeFunc: ffi_onde_rust_future_complete_rust_buffer,
-                freeFunc: ffi_onde_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeInferenceResult_lift,
-                errorHandler: FfiConverterTypeInferenceError_lift
-            )
-    }
-
+open func generate(messages: [ChatMessage], sampling: SamplingConfig?)async throws  -> InferenceResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_generate(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypeChatMessage.lower(messages),FfiConverterOptionTypeSamplingConfig.lower(sampling)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_rust_buffer,
+            completeFunc: ffi_onde_rust_future_complete_rust_buffer,
+            freeFunc: ffi_onde_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeInferenceResult_lift,
+            errorHandler: FfiConverterTypeInferenceError_lift
+        )
+}
+    
     /**
      * Get a copy of the full conversation history.
      */
-    open func history() async -> [ChatMessage] {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_history(
-                        self.uniffiCloneHandle()
-
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_rust_buffer,
-                completeFunc: ffi_onde_rust_future_complete_rust_buffer,
-                freeFunc: ffi_onde_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterSequenceTypeChatMessage.lift,
-                errorHandler: nil
-
-            )
-    }
-
+open func history()async  -> [ChatMessage]  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_history(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_rust_buffer,
+            completeFunc: ffi_onde_rust_future_complete_rust_buffer,
+            freeFunc: ffi_onde_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeChatMessage.lift,
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Get a snapshot of the engine's current state.
      */
-    open func info() async -> EngineInfo {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_info(
-                        self.uniffiCloneHandle()
-
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_rust_buffer,
-                completeFunc: ffi_onde_rust_future_complete_rust_buffer,
-                freeFunc: ffi_onde_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeEngineInfo_lift,
-                errorHandler: nil
-
-            )
-    }
-
+open func info()async  -> EngineInfo  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_info(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_rust_buffer,
+            completeFunc: ffi_onde_rust_future_complete_rust_buffer,
+            freeFunc: ffi_onde_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEngineInfo_lift,
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Check whether a model is currently loaded.
      */
-    open func isLoaded() async -> Bool {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_is_loaded(
-                        self.uniffiCloneHandle()
-
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_i8,
-                completeFunc: ffi_onde_rust_future_complete_i8,
-                freeFunc: ffi_onde_rust_future_free_i8,
-                liftFunc: FfiConverterBool.lift,
-                errorHandler: nil
-
-            )
-    }
-
+open func isLoaded()async  -> Bool  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_is_loaded(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_i8,
+            completeFunc: ffi_onde_rust_future_complete_i8,
+            freeFunc: ffi_onde_rust_future_free_i8,
+            liftFunc: FfiConverterBool.lift,
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Load the platform-appropriate default model.
      *
@@ -863,26 +863,23 @@ open class OndeChatEngine: OndeChatEngineProtocol, @unchecked Sendable {
      *
      * Returns the wall-clock loading time in seconds.
      */
-    open func loadDefaultModel(systemPrompt: String?, sampling: SamplingConfig?) async throws
-        -> Double
-    {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_load_default_model(
-                        self.uniffiCloneHandle(),
-                        FfiConverterOptionString.lower(systemPrompt),
-                        FfiConverterOptionTypeSamplingConfig.lower(sampling)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_f64,
-                completeFunc: ffi_onde_rust_future_complete_f64,
-                freeFunc: ffi_onde_rust_future_free_f64,
-                liftFunc: FfiConverterDouble.lift,
-                errorHandler: FfiConverterTypeInferenceError_lift
-            )
-    }
-
+open func loadDefaultModel(systemPrompt: String?, sampling: SamplingConfig?)async throws  -> Double  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_load_default_model(
+                    self.uniffiCloneHandle(),
+                    FfiConverterOptionString.lower(systemPrompt),FfiConverterOptionTypeSamplingConfig.lower(sampling)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_f64,
+            completeFunc: ffi_onde_rust_future_complete_f64,
+            freeFunc: ffi_onde_rust_future_free_f64,
+            liftFunc: FfiConverterDouble.lift,
+            errorHandler: FfiConverterTypeInferenceError_lift
+        )
+}
+    
     /**
      * Load a GGUF model into the engine.
      *
@@ -890,141 +887,140 @@ open class OndeChatEngine: OndeChatEngineProtocol, @unchecked Sendable {
      *
      * Returns the wall-clock loading time in seconds.
      */
-    open func loadGgufModel(
-        config: GgufModelConfig, systemPrompt: String?, sampling: SamplingConfig?
-    ) async throws -> Double {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_load_gguf_model(
-                        self.uniffiCloneHandle(),
-                        FfiConverterTypeGgufModelConfig_lower(config),
-                        FfiConverterOptionString.lower(systemPrompt),
-                        FfiConverterOptionTypeSamplingConfig.lower(sampling)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_f64,
-                completeFunc: ffi_onde_rust_future_complete_f64,
-                freeFunc: ffi_onde_rust_future_free_f64,
-                liftFunc: FfiConverterDouble.lift,
-                errorHandler: FfiConverterTypeInferenceError_lift
-            )
-    }
-
+open func loadGgufModel(config: GgufModelConfig, systemPrompt: String?, sampling: SamplingConfig?)async throws  -> Double  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_load_gguf_model(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeGgufModelConfig_lower(config),FfiConverterOptionString.lower(systemPrompt),FfiConverterOptionTypeSamplingConfig.lower(sampling)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_f64,
+            completeFunc: ffi_onde_rust_future_complete_f64,
+            freeFunc: ffi_onde_rust_future_free_f64,
+            liftFunc: FfiConverterDouble.lift,
+            errorHandler: FfiConverterTypeInferenceError_lift
+        )
+}
+    
     /**
      * Append a message to history without running inference.
      */
-    open func pushHistory(message: ChatMessage) async {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_push_history(
-                        self.uniffiCloneHandle(),
-                        FfiConverterTypeChatMessage_lower(message)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_void,
-                completeFunc: ffi_onde_rust_future_complete_void,
-                freeFunc: ffi_onde_rust_future_free_void,
-                liftFunc: { $0 },
-                errorHandler: nil
-
-            )
-    }
-
+open func pushHistory(message: ChatMessage)async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_push_history(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeChatMessage_lower(message)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_void,
+            completeFunc: ffi_onde_rust_future_complete_void,
+            freeFunc: ffi_onde_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Send a user message and receive a complete assistant reply.
      *
      * The user message and assistant reply are automatically appended to
      * the conversation history on success.
      */
-    open func sendMessage(message: String) async throws -> InferenceResult {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_send_message(
-                        self.uniffiCloneHandle(),
-                        FfiConverterString.lower(message)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_rust_buffer,
-                completeFunc: ffi_onde_rust_future_complete_rust_buffer,
-                freeFunc: ffi_onde_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeInferenceResult_lift,
-                errorHandler: FfiConverterTypeInferenceError_lift
-            )
-    }
-
+open func sendMessage(message: String)async throws  -> InferenceResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_send_message(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(message)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_rust_buffer,
+            completeFunc: ffi_onde_rust_future_complete_rust_buffer,
+            freeFunc: ffi_onde_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeInferenceResult_lift,
+            errorHandler: FfiConverterTypeInferenceError_lift
+        )
+}
+    
     /**
      * Replace the sampling configuration.
      */
-    open func setSampling(sampling: SamplingConfig) async {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_set_sampling(
-                        self.uniffiCloneHandle(),
-                        FfiConverterTypeSamplingConfig_lower(sampling)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_void,
-                completeFunc: ffi_onde_rust_future_complete_void,
-                freeFunc: ffi_onde_rust_future_free_void,
-                liftFunc: { $0 },
-                errorHandler: nil
-
-            )
-    }
-
+open func setSampling(sampling: SamplingConfig)async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_set_sampling(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeSamplingConfig_lower(sampling)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_void,
+            completeFunc: ffi_onde_rust_future_complete_void,
+            freeFunc: ffi_onde_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Set or replace the system prompt.
      */
-    open func setSystemPrompt(prompt: String) async {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_set_system_prompt(
-                        self.uniffiCloneHandle(),
-                        FfiConverterString.lower(prompt)
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_void,
-                completeFunc: ffi_onde_rust_future_complete_void,
-                freeFunc: ffi_onde_rust_future_free_void,
-                liftFunc: { $0 },
-                errorHandler: nil
-
-            )
-    }
-
+open func setSystemPrompt(prompt: String)async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_set_system_prompt(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(prompt)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_void,
+            completeFunc: ffi_onde_rust_future_complete_void,
+            freeFunc: ffi_onde_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
     /**
      * Unload the current model, freeing all memory.
      *
      * Returns the display name of the model that was unloaded, or `nil`
      * if no model was loaded.
      */
-    open func unloadModel() async -> String? {
-        return
-            try! await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_onde_fn_method_ondechatengine_unload_model(
-                        self.uniffiCloneHandle()
+open func unloadModel()async  -> String?  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_unload_model(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_rust_buffer,
+            completeFunc: ffi_onde_rust_future_complete_rust_buffer,
+            freeFunc: ffi_onde_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionString.lift,
+            errorHandler: nil
+            
+        )
+}
+    
 
-                    )
-                },
-                pollFunc: ffi_onde_rust_future_poll_rust_buffer,
-                completeFunc: ffi_onde_rust_future_complete_rust_buffer,
-                freeFunc: ffi_onde_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterOptionString.lift,
-                errorHandler: nil
-
-            )
-    }
-
+    
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeOndeChatEngine: FfiConverter {
     typealias FfiType = UInt64
@@ -1038,9 +1034,7 @@ public struct FfiConverterTypeOndeChatEngine: FfiConverter {
         return value.uniffiCloneHandle()
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> OndeChatEngine
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OndeChatEngine {
         let handle: UInt64 = try readInt(&buf)
         return try lift(handle)
     }
@@ -1050,21 +1044,27 @@ public struct FfiConverterTypeOndeChatEngine: FfiConverter {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeOndeChatEngine_lift(_ handle: UInt64) throws -> OndeChatEngine {
     return try FfiConverterTypeOndeChatEngine.lift(handle)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeOndeChatEngine_lower(_ value: OndeChatEngine) -> UInt64 {
     return FfiConverterTypeOndeChatEngine.lower(value)
 }
 
-/// A single message in a conversation.
+
+
+
+/**
+ * A single message in a conversation.
+ */
 public struct ChatMessage: Equatable, Hashable {
     public var role: ChatRole
     public var content: String
@@ -1076,23 +1076,25 @@ public struct ChatMessage: Equatable, Hashable {
         self.content = content
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension ChatMessage: Sendable {}
+extension ChatMessage: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeChatMessage: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatMessage
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatMessage {
         return
             try ChatMessage(
-                role: FfiConverterTypeChatRole.read(from: &buf),
+                role: FfiConverterTypeChatRole.read(from: &buf), 
                 content: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: ChatMessage, into buf: inout [UInt8]) {
@@ -1101,23 +1103,27 @@ public struct FfiConverterTypeChatMessage: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeChatMessage_lift(_ buf: RustBuffer) throws -> ChatMessage {
     return try FfiConverterTypeChatMessage.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeChatMessage_lower(_ value: ChatMessage) -> RustBuffer {
     return FfiConverterTypeChatMessage.lower(value)
 }
 
-/// A point-in-time snapshot of the engine's state, suitable for status UIs.
-///
-/// Note: `history_length` is `u64` (not `usize`) for UniFFI compatibility.
+
+/**
+ * A point-in-time snapshot of the engine's state, suitable for status UIs.
+ *
+ * Note: `history_length` is `u64` (not `usize`) for UniFFI compatibility.
+ */
 public struct EngineInfo: Equatable, Hashable {
     public var status: EngineStatus
     /**
@@ -1135,45 +1141,43 @@ public struct EngineInfo: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
-        status: EngineStatus,
+    public init(status: EngineStatus, 
         /**
          * Display name of the currently loaded model, if any.
-         */
-        modelName: String?,
+         */modelName: String?, 
         /**
          * Approximate memory footprint description, if a model is loaded.
-         */
-        approxMemory: String?,
+         */approxMemory: String?, 
         /**
          * Number of conversation turns in the current history.
-         */
-        historyLength: UInt64
-    ) {
+         */historyLength: UInt64) {
         self.status = status
         self.modelName = modelName
         self.approxMemory = approxMemory
         self.historyLength = historyLength
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension EngineInfo: Sendable {}
+extension EngineInfo: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeEngineInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EngineInfo {
         return
             try EngineInfo(
-                status: FfiConverterTypeEngineStatus.read(from: &buf),
-                modelName: FfiConverterOptionString.read(from: &buf),
-                approxMemory: FfiConverterOptionString.read(from: &buf),
+                status: FfiConverterTypeEngineStatus.read(from: &buf), 
+                modelName: FfiConverterOptionString.read(from: &buf), 
+                approxMemory: FfiConverterOptionString.read(from: &buf), 
                 historyLength: FfiConverterUInt64.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: EngineInfo, into buf: inout [UInt8]) {
@@ -1184,25 +1188,29 @@ public struct FfiConverterTypeEngineInfo: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeEngineInfo_lift(_ buf: RustBuffer) throws -> EngineInfo {
     return try FfiConverterTypeEngineInfo.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeEngineInfo_lower(_ value: EngineInfo) -> RustBuffer {
     return FfiConverterTypeEngineInfo.lower(value)
 }
 
-/// Configuration for loading a GGUF model via mistral.rs.
-///
-/// This is the primary model format for on-device mobile/desktop inference
-/// because GGUF files are pre-quantized and load at their compressed size,
-/// avoiding the large memory spike of in-situ quantization.
+
+/**
+ * Configuration for loading a GGUF model via mistral.rs.
+ *
+ * This is the primary model format for on-device mobile/desktop inference
+ * because GGUF files are pre-quantized and load at their compressed size,
+ * avoiding the large memory spike of in-situ quantization.
+ */
 public struct GgufModelConfig: Equatable, Hashable {
     /**
      * HuggingFace model repository ID, e.g. `"bartowski/Qwen2.5-1.5B-Instruct-GGUF"`.
@@ -1231,26 +1239,20 @@ public struct GgufModelConfig: Equatable, Hashable {
     public init(
         /**
          * HuggingFace model repository ID, e.g. `"bartowski/Qwen2.5-1.5B-Instruct-GGUF"`.
-         */
-        modelId: String,
+         */modelId: String, 
         /**
          * GGUF filename(s) within the repository, e.g. `["Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"]`.
-         */
-        files: [String],
+         */files: [String], 
         /**
          * Optional: explicit tokenizer model ID (required on Android where GGUF
          * embedded tokenizers are not supported by the candle backend).
-         */
-        tokModelId: String?,
+         */tokModelId: String?, 
         /**
          * Human-friendly display name, e.g. `"Qwen 2.5 1.5B"`.
-         */
-        displayName: String,
+         */displayName: String, 
         /**
          * Approximate memory footprint description, e.g. `"~941 MB (GGUF Q4_K_M)"`.
-         */
-        approxMemory: String
-    ) {
+         */approxMemory: String) {
         self.modelId = modelId
         self.files = files
         self.tokModelId = tokModelId
@@ -1258,27 +1260,28 @@ public struct GgufModelConfig: Equatable, Hashable {
         self.approxMemory = approxMemory
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension GgufModelConfig: Sendable {}
+extension GgufModelConfig: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeGgufModelConfig: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> GgufModelConfig
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GgufModelConfig {
         return
             try GgufModelConfig(
-                modelId: FfiConverterString.read(from: &buf),
-                files: FfiConverterSequenceString.read(from: &buf),
-                tokModelId: FfiConverterOptionString.read(from: &buf),
-                displayName: FfiConverterString.read(from: &buf),
+                modelId: FfiConverterString.read(from: &buf), 
+                files: FfiConverterSequenceString.read(from: &buf), 
+                tokModelId: FfiConverterOptionString.read(from: &buf), 
+                displayName: FfiConverterString.read(from: &buf), 
                 approxMemory: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: GgufModelConfig, into buf: inout [UInt8]) {
@@ -1290,21 +1293,25 @@ public struct FfiConverterTypeGgufModelConfig: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeGgufModelConfig_lift(_ buf: RustBuffer) throws -> GgufModelConfig {
     return try FfiConverterTypeGgufModelConfig.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeGgufModelConfig_lower(_ value: GgufModelConfig) -> RustBuffer {
     return FfiConverterTypeGgufModelConfig.lower(value)
 }
 
-/// The result of a chat inference request.
+
+/**
+ * The result of a chat inference request.
+ */
 public struct InferenceResult: Equatable, Hashable {
     /**
      * The generated assistant reply text.
@@ -1328,47 +1335,43 @@ public struct InferenceResult: Equatable, Hashable {
     public init(
         /**
          * The generated assistant reply text.
-         */
-        text: String,
+         */text: String, 
         /**
          * Wall-clock duration of the inference in seconds.
-         */
-        durationSecs: Double,
+         */durationSecs: Double, 
         /**
          * Human-readable duration string (e.g. `"2m 3.1s"` or `"4.5s"`).
-         */
-        durationDisplay: String,
+         */durationDisplay: String, 
         /**
          * Finish reason reported by the model (e.g. `"stop"`, `"length"`).
-         */
-        finishReason: String
-    ) {
+         */finishReason: String) {
         self.text = text
         self.durationSecs = durationSecs
         self.durationDisplay = durationDisplay
         self.finishReason = finishReason
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension InferenceResult: Sendable {}
+extension InferenceResult: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeInferenceResult: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> InferenceResult
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InferenceResult {
         return
             try InferenceResult(
-                text: FfiConverterString.read(from: &buf),
-                durationSecs: FfiConverterDouble.read(from: &buf),
-                durationDisplay: FfiConverterString.read(from: &buf),
+                text: FfiConverterString.read(from: &buf), 
+                durationSecs: FfiConverterDouble.read(from: &buf), 
+                durationDisplay: FfiConverterString.read(from: &buf), 
                 finishReason: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: InferenceResult, into buf: inout [UInt8]) {
@@ -1379,32 +1382,36 @@ public struct FfiConverterTypeInferenceResult: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeInferenceResult_lift(_ buf: RustBuffer) throws -> InferenceResult {
     return try FfiConverterTypeInferenceResult.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeInferenceResult_lower(_ value: InferenceResult) -> RustBuffer {
     return FfiConverterTypeInferenceResult.lower(value)
 }
 
-/// Configuration for loading an ISQ (in-situ quantised) model via mistral.rs
-/// `TextModelBuilder`.
-///
-/// Unlike GGUF models, ISQ models are loaded directly from a HuggingFace
-/// safetensors repo and quantised in-situ on the device.  They require more
-/// RAM during the load phase but support a wider range of architectures
-/// (e.g. DeepSeek-Coder-V2-Lite, Qwen2.5-Coder-7B).
-///
-/// **macOS-only for now** — ISQ with Metal acceleration requires the `metal`
-/// feature on mistral.rs.  The struct is still defined on all platforms so
-/// that types.rs compiles everywhere without `cfg` gates on the record
-/// (UniFFI requires all record types to be reachable without feature flags).
+
+/**
+ * Configuration for loading an ISQ (in-situ quantised) model via mistral.rs
+ * `TextModelBuilder`.
+ *
+ * Unlike GGUF models, ISQ models are loaded directly from a HuggingFace
+ * safetensors repo and quantised in-situ on the device.  They require more
+ * RAM during the load phase but support a wider range of architectures
+ * (e.g. DeepSeek-Coder-V2-Lite, Qwen2.5-Coder-7B).
+ *
+ * **macOS-only for now** — ISQ with Metal acceleration requires the `metal`
+ * feature on mistral.rs.  The struct is still defined on all platforms so
+ * that types.rs compiles everywhere without `cfg` gates on the record
+ * (UniFFI requires all record types to be reachable without feature flags).
+ */
 public struct IsqModelConfig: Equatable, Hashable {
     /**
      * HuggingFace model repository ID, e.g. `"Qwen/Qwen2.5-Coder-7B-Instruct"`.
@@ -1429,48 +1436,44 @@ public struct IsqModelConfig: Equatable, Hashable {
     public init(
         /**
          * HuggingFace model repository ID, e.g. `"Qwen/Qwen2.5-Coder-7B-Instruct"`.
-         */
-        modelId: String,
+         */modelId: String, 
         /**
          * Number of quantisation bits.  `4` → Q4K (AFQ4 on Metal), `8` → Q8_0 (AFQ8 on Metal).
          * Any value outside `{4, 8}` defaults to 4-bit.
-         */
-        isqBits: UInt8,
+         */isqBits: UInt8, 
         /**
          * Human-friendly display name, e.g. `"Qwen 2.5 Coder 7B"`.
-         */
-        displayName: String,
+         */displayName: String, 
         /**
          * Approximate memory footprint description, e.g. `"~4.5 GB (Q4K, Metal)"`.
-         */
-        approxMemory: String
-    ) {
+         */approxMemory: String) {
         self.modelId = modelId
         self.isqBits = isqBits
         self.displayName = displayName
         self.approxMemory = approxMemory
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension IsqModelConfig: Sendable {}
+extension IsqModelConfig: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeIsqModelConfig: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> IsqModelConfig
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IsqModelConfig {
         return
             try IsqModelConfig(
-                modelId: FfiConverterString.read(from: &buf),
-                isqBits: FfiConverterUInt8.read(from: &buf),
-                displayName: FfiConverterString.read(from: &buf),
+                modelId: FfiConverterString.read(from: &buf), 
+                isqBits: FfiConverterUInt8.read(from: &buf), 
+                displayName: FfiConverterString.read(from: &buf), 
                 approxMemory: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: IsqModelConfig, into buf: inout [UInt8]) {
@@ -1481,25 +1484,29 @@ public struct FfiConverterTypeIsqModelConfig: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeIsqModelConfig_lift(_ buf: RustBuffer) throws -> IsqModelConfig {
     return try FfiConverterTypeIsqModelConfig.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeIsqModelConfig_lower(_ value: IsqModelConfig) -> RustBuffer {
     return FfiConverterTypeIsqModelConfig.lower(value)
 }
 
-/// Sampling parameters for text generation.
-///
-/// All fields are optional — `None` means "use the engine default".
-///
-/// Note: `usize` is replaced with `u64` for UniFFI compatibility.
+
+/**
+ * Sampling parameters for text generation.
+ *
+ * All fields are optional — `None` means "use the engine default".
+ *
+ * Note: `usize` is replaced with `u64` for UniFFI compatibility.
+ */
 public struct SamplingConfig: Equatable, Hashable {
     /**
      * Sampling temperature (higher = more random).  Typical range: 0.0–2.0.
@@ -1535,33 +1542,25 @@ public struct SamplingConfig: Equatable, Hashable {
     public init(
         /**
          * Sampling temperature (higher = more random).  Typical range: 0.0–2.0.
-         */
-        temperature: Double?,
+         */temperature: Double?, 
         /**
          * Nucleus (top-p) sampling threshold.  Typical value: 0.9–0.95.
-         */
-        topP: Double?,
+         */topP: Double?, 
         /**
          * Top-k sampling limit.
-         */
-        topK: UInt64?,
+         */topK: UInt64?, 
         /**
          * Min-p sampling threshold.
-         */
-        minP: Double?,
+         */minP: Double?, 
         /**
          * Maximum number of tokens to generate.
-         */
-        maxTokens: UInt64?,
+         */maxTokens: UInt64?, 
         /**
          * Frequency penalty (penalise tokens proportional to occurrence count).
-         */
-        frequencyPenalty: Float?,
+         */frequencyPenalty: Float?, 
         /**
          * Presence penalty (penalise tokens that appeared at all).
-         */
-        presencePenalty: Float?
-    ) {
+         */presencePenalty: Float?) {
         self.temperature = temperature
         self.topP = topP
         self.topK = topK
@@ -1571,29 +1570,30 @@ public struct SamplingConfig: Equatable, Hashable {
         self.presencePenalty = presencePenalty
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension SamplingConfig: Sendable {}
+extension SamplingConfig: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeSamplingConfig: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> SamplingConfig
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SamplingConfig {
         return
             try SamplingConfig(
-                temperature: FfiConverterOptionDouble.read(from: &buf),
-                topP: FfiConverterOptionDouble.read(from: &buf),
-                topK: FfiConverterOptionUInt64.read(from: &buf),
-                minP: FfiConverterOptionDouble.read(from: &buf),
-                maxTokens: FfiConverterOptionUInt64.read(from: &buf),
-                frequencyPenalty: FfiConverterOptionFloat.read(from: &buf),
+                temperature: FfiConverterOptionDouble.read(from: &buf), 
+                topP: FfiConverterOptionDouble.read(from: &buf), 
+                topK: FfiConverterOptionUInt64.read(from: &buf), 
+                minP: FfiConverterOptionDouble.read(from: &buf), 
+                maxTokens: FfiConverterOptionUInt64.read(from: &buf), 
+                frequencyPenalty: FfiConverterOptionFloat.read(from: &buf), 
                 presencePenalty: FfiConverterOptionFloat.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: SamplingConfig, into buf: inout [UInt8]) {
@@ -1607,21 +1607,25 @@ public struct FfiConverterTypeSamplingConfig: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeSamplingConfig_lift(_ buf: RustBuffer) throws -> SamplingConfig {
     return try FfiConverterTypeSamplingConfig.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeSamplingConfig_lower(_ value: SamplingConfig) -> RustBuffer {
     return FfiConverterTypeSamplingConfig.lower(value)
 }
 
-/// A single streaming token chunk from the inference engine.
+
+/**
+ * A single streaming token chunk from the inference engine.
+ */
 public struct StreamChunk: Equatable, Hashable {
     /**
      * The token text delta (may be empty for the final chunk).
@@ -1641,40 +1645,38 @@ public struct StreamChunk: Equatable, Hashable {
     public init(
         /**
          * The token text delta (may be empty for the final chunk).
-         */
-        delta: String,
+         */delta: String, 
         /**
          * Whether this is the final chunk in the stream.
-         */
-        done: Bool,
+         */done: Bool, 
         /**
          * Finish reason (only set on the final chunk).
-         */
-        finishReason: String?
-    ) {
+         */finishReason: String?) {
         self.delta = delta
         self.done = done
         self.finishReason = finishReason
     }
 
+    
+
+    
 }
 
 #if compiler(>=6)
-    extension StreamChunk: Sendable {}
+extension StreamChunk: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeStreamChunk: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StreamChunk
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StreamChunk {
         return
             try StreamChunk(
-                delta: FfiConverterString.read(from: &buf),
-                done: FfiConverterBool.read(from: &buf),
+                delta: FfiConverterString.read(from: &buf), 
+                done: FfiConverterBool.read(from: &buf), 
                 finishReason: FfiConverterOptionString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: StreamChunk, into buf: inout [UInt8]) {
@@ -1684,15 +1686,16 @@ public struct FfiConverterTypeStreamChunk: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeStreamChunk_lift(_ buf: RustBuffer) throws -> StreamChunk {
     return try FfiConverterTypeStreamChunk.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeStreamChunk_lower(_ value: StreamChunk) -> RustBuffer {
     return FfiConverterTypeStreamChunk.lower(value)
@@ -1709,19 +1712,23 @@ public func FfiConverterTypeStreamChunk_lower(_ value: StreamChunk) -> RustBuffe
  */
 
 public enum ChatRole: Equatable, Hashable {
-
+    
     case system
     case user
     case assistant
 
+
+
+
+
 }
 
 #if compiler(>=6)
-    extension ChatRole: Sendable {}
+extension ChatRole: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeChatRole: FfiConverterRustBuffer {
     typealias SwiftType = ChatRole
@@ -1729,46 +1736,51 @@ public struct FfiConverterTypeChatRole: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatRole {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .system
-
+        
         case 2: return .user
-
+        
         case 3: return .assistant
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: ChatRole, into buf: inout [UInt8]) {
         switch value {
-
+        
+        
         case .system:
             writeInt(&buf, Int32(1))
-
+        
+        
         case .user:
             writeInt(&buf, Int32(2))
-
+        
+        
         case .assistant:
             writeInt(&buf, Int32(3))
-
+        
         }
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeChatRole_lift(_ buf: RustBuffer) throws -> ChatRole {
     return try FfiConverterTypeChatRole.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeChatRole_lower(_ value: ChatRole) -> RustBuffer {
     return FfiConverterTypeChatRole.lower(value)
 }
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -1777,7 +1789,7 @@ public func FfiConverterTypeChatRole_lower(_ value: ChatRole) -> RustBuffer {
  */
 
 public enum EngineStatus: Equatable, Hashable {
-
+    
     /**
      * No model loaded.
      */
@@ -1799,340 +1811,353 @@ public enum EngineStatus: Equatable, Hashable {
      */
     case error
 
+
+
+
+
 }
 
 #if compiler(>=6)
-    extension EngineStatus: Sendable {}
+extension EngineStatus: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeEngineStatus: FfiConverterRustBuffer {
     typealias SwiftType = EngineStatus
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EngineStatus
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EngineStatus {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .unloaded
-
+        
         case 2: return .loading
-
+        
         case 3: return .ready
-
+        
         case 4: return .generating
-
+        
         case 5: return .error
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: EngineStatus, into buf: inout [UInt8]) {
         switch value {
-
+        
+        
         case .unloaded:
             writeInt(&buf, Int32(1))
-
+        
+        
         case .loading:
             writeInt(&buf, Int32(2))
-
+        
+        
         case .ready:
             writeInt(&buf, Int32(3))
-
+        
+        
         case .generating:
             writeInt(&buf, Int32(4))
-
+        
+        
         case .error:
             writeInt(&buf, Int32(5))
-
+        
         }
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeEngineStatus_lift(_ buf: RustBuffer) throws -> EngineStatus {
     return try FfiConverterTypeEngineStatus.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeEngineStatus_lower(_ value: EngineStatus) -> RustBuffer {
     return FfiConverterTypeEngineStatus.lower(value)
 }
 
-/// Errors that can occur during inference engine operations.
-///
-/// Exposed to Swift / Kotlin as a sealed class / enum via `uniffi::Error`.
+
+
+/**
+ * Errors that can occur during inference engine operations.
+ *
+ * Exposed to Swift / Kotlin as a sealed class / enum via `uniffi::Error`.
+ */
 public enum InferenceError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
+    
+    
     case NoModelLoaded
-    case AlreadyLoaded(
-        modelName: String
+    case AlreadyLoaded(modelName: String
     )
-    case ModelBuild(
-        reason: String
+    case ModelBuild(reason: String
     )
-    case Inference(
-        reason: String
+    case Inference(reason: String
     )
     case Cancelled
-    case Other(
-        reason: String
+    case Other(reason: String
     )
 
+    
+
+    
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
-    extension InferenceError: Sendable {}
+extension InferenceError: Sendable {}
 #endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeInferenceError: FfiConverterRustBuffer {
     typealias SwiftType = InferenceError
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> InferenceError
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InferenceError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
+
+        
         case 1: return .NoModelLoaded
-        case 2:
-            return .AlreadyLoaded(
-                modelName: try FfiConverterString.read(from: &buf)
+        case 2: return .AlreadyLoaded(
+            modelName: try FfiConverterString.read(from: &buf)
             )
-        case 3:
-            return .ModelBuild(
-                reason: try FfiConverterString.read(from: &buf)
+        case 3: return .ModelBuild(
+            reason: try FfiConverterString.read(from: &buf)
             )
-        case 4:
-            return .Inference(
-                reason: try FfiConverterString.read(from: &buf)
+        case 4: return .Inference(
+            reason: try FfiConverterString.read(from: &buf)
             )
         case 5: return .Cancelled
-        case 6:
-            return .Other(
-                reason: try FfiConverterString.read(from: &buf)
+        case 6: return .Other(
+            reason: try FfiConverterString.read(from: &buf)
             )
 
-        default: throw UniffiInternalError.unexpectedEnumCase
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: InferenceError, into buf: inout [UInt8]) {
         switch value {
 
+        
+
+        
+        
         case .NoModelLoaded:
             writeInt(&buf, Int32(1))
-
-        case .AlreadyLoaded(let modelName):
+        
+        
+        case let .AlreadyLoaded(modelName):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(modelName, into: &buf)
-
-        case .ModelBuild(let reason):
+            
+        
+        case let .ModelBuild(reason):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(reason, into: &buf)
-
-        case .Inference(let reason):
+            
+        
+        case let .Inference(reason):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(reason, into: &buf)
-
+            
+        
         case .Cancelled:
             writeInt(&buf, Int32(5))
-
-        case .Other(let reason):
+        
+        
+        case let .Other(reason):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(reason, into: &buf)
-
+            
         }
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeInferenceError_lift(_ buf: RustBuffer) throws -> InferenceError {
     return try FfiConverterTypeInferenceError.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeInferenceError_lower(_ value: InferenceError) -> RustBuffer {
     return FfiConverterTypeInferenceError.lower(value)
 }
 
-/// Callback interface for receiving streaming token chunks.
-///
-/// Implement this in Swift / Kotlin and pass it to the free function
-/// [`stream_chat_message`].
-///
-/// ```swift
-/// class MyStreamHandler: StreamChunkListener {
-/// func onChunk(chunk: StreamChunk) -> Bool {
-/// print(chunk.delta, terminator: "")
-/// return !chunk.done  // return false to stop early
-/// }
-/// }
-/// ```
-public protocol StreamChunkListener: AnyObject, Sendable {
 
+
+
+/**
+ * Callback interface for receiving streaming token chunks.
+ *
+ * Implement this in Swift / Kotlin and pass it to the free function
+ * [`stream_chat_message`].
+ *
+ * ```swift
+ * class MyStreamHandler: StreamChunkListener {
+ * func onChunk(chunk: StreamChunk) -> Bool {
+ * print(chunk.delta, terminator: "")
+ * return !chunk.done  // return false to stop early
+ * }
+ * }
+ * ```
+ */
+public protocol StreamChunkListener: AnyObject, Sendable {
+    
     /**
      * Called for each token chunk during streaming inference.
      *
      * Return `true` to continue receiving chunks, or `false` to cancel
      * the stream early (the engine will still persist partial history).
      */
-    func onChunk(chunk: StreamChunk) -> Bool
-
+    func onChunk(chunk: StreamChunk)  -> Bool
+    
 }
 
+
 // Put the implementation in a struct so we don't pollute the top-level namespace
-private struct UniffiCallbackInterfaceStreamChunkListener {
+fileprivate struct UniffiCallbackInterfaceStreamChunkListener {
 
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
     // This creates 1-element array, since this seems to be the only way to construct a const
     // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceStreamChunkListener] = [
-        UniffiVTableCallbackInterfaceStreamChunkListener(
-            uniffiFree: { (uniffiHandle: UInt64) -> Void in
-                do {
-                    try FfiConverterCallbackInterfaceStreamChunkListener.handleMap.remove(
-                        handle: uniffiHandle)
-                } catch {
-                    print(
-                        "Uniffi callback interface StreamChunkListener: handle missing in uniffiFree"
-                    )
+    static let vtable: [UniffiVTableCallbackInterfaceStreamChunkListener] = [UniffiVTableCallbackInterfaceStreamChunkListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterCallbackInterfaceStreamChunkListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface StreamChunkListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterCallbackInterfaceStreamChunkListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface StreamChunkListener: handle missing in uniffiClone")
+            }
+        },
+        onChunk: { (
+            uniffiHandle: UInt64,
+            chunk: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<Int8>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Bool in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceStreamChunkListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
                 }
-            },
-            uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-                do {
-                    return try FfiConverterCallbackInterfaceStreamChunkListener.handleMap.clone(
-                        handle: uniffiHandle)
-                } catch {
-                    fatalError(
-                        "Uniffi callback interface StreamChunkListener: handle missing in uniffiClone"
-                    )
-                }
-            },
-            onChunk: {
-                (
-                    uniffiHandle: UInt64,
-                    chunk: RustBuffer,
-                    uniffiOutReturn: UnsafeMutablePointer<Int8>,
-                    uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-                ) in
-                let makeCall = {
-                    () throws -> Bool in
-                    guard
-                        let uniffiObj =
-                            try? FfiConverterCallbackInterfaceStreamChunkListener.handleMap.get(
-                                handle: uniffiHandle)
-                    else {
-                        throw UniffiInternalError.unexpectedStaleHandle
-                    }
-                    return uniffiObj.onChunk(
-                        chunk: try FfiConverterTypeStreamChunk_lift(chunk)
-                    )
-                }
-
-                let writeReturn = { uniffiOutReturn.pointee = FfiConverterBool.lower($0) }
-                uniffiTraitInterfaceCall(
-                    callStatus: uniffiCallStatus,
-                    makeCall: makeCall,
-                    writeReturn: writeReturn
+                return uniffiObj.onChunk(
+                     chunk: try FfiConverterTypeStreamChunk_lift(chunk)
                 )
             }
-        )
-    ]
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterBool.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )]
 }
 
 private func uniffiCallbackInitStreamChunkListener() {
-    uniffi_onde_fn_init_callback_vtable_streamchunklistener(
-        UniffiCallbackInterfaceStreamChunkListener.vtable)
+    uniffi_onde_fn_init_callback_vtable_streamchunklistener(UniffiCallbackInterfaceStreamChunkListener.vtable)
 }
 
 // FfiConverter protocol for callback interfaces
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterCallbackInterfaceStreamChunkListener {
+fileprivate struct FfiConverterCallbackInterfaceStreamChunkListener {
     fileprivate static let handleMap = UniffiHandleMap<StreamChunkListener>()
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-extension FfiConverterCallbackInterfaceStreamChunkListener: FfiConverter {
+extension FfiConverterCallbackInterfaceStreamChunkListener : FfiConverter {
     typealias SwiftType = StreamChunkListener
     typealias FfiType = UInt64
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ handle: UInt64) throws -> SwiftType {
         try handleMap.get(handle: handle)
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
         let handle: UInt64 = try readInt(&buf)
         return try lift(handle)
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ v: SwiftType) -> UInt64 {
         return handleMap.insert(obj: v)
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
         writeInt(&buf, lower(v))
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-public func FfiConverterCallbackInterfaceStreamChunkListener_lift(_ handle: UInt64) throws
-    -> StreamChunkListener
-{
+public func FfiConverterCallbackInterfaceStreamChunkListener_lift(_ handle: UInt64) throws -> StreamChunkListener {
     return try FfiConverterCallbackInterfaceStreamChunkListener.lift(handle)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-public func FfiConverterCallbackInterfaceStreamChunkListener_lower(_ v: StreamChunkListener)
-    -> UInt64
-{
+public func FfiConverterCallbackInterfaceStreamChunkListener_lower(_ v: StreamChunkListener) -> UInt64 {
     return FfiConverterCallbackInterfaceStreamChunkListener.lower(v)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
+fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
     typealias SwiftType = UInt64?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
@@ -2154,9 +2179,9 @@ private struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterOptionFloat: FfiConverterRustBuffer {
+fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
     typealias SwiftType = Float?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
@@ -2178,9 +2203,9 @@ private struct FfiConverterOptionFloat: FfiConverterRustBuffer {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterOptionDouble: FfiConverterRustBuffer {
+fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
     typealias SwiftType = Double?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
@@ -2202,9 +2227,9 @@ private struct FfiConverterOptionDouble: FfiConverterRustBuffer {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterOptionString: FfiConverterRustBuffer {
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
@@ -2226,9 +2251,9 @@ private struct FfiConverterOptionString: FfiConverterRustBuffer {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterOptionTypeSamplingConfig: FfiConverterRustBuffer {
+fileprivate struct FfiConverterOptionTypeSamplingConfig: FfiConverterRustBuffer {
     typealias SwiftType = SamplingConfig?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
@@ -2250,9 +2275,9 @@ private struct FfiConverterOptionTypeSamplingConfig: FfiConverterRustBuffer {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceString: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
     public static func write(_ value: [String], into buf: inout [UInt8]) {
@@ -2267,7 +2292,7 @@ private struct FfiConverterSequenceString: FfiConverterRustBuffer {
         let len: Int32 = try readInt(&buf)
         var seq = [String]()
         seq.reserveCapacity(Int(len))
-        for _ in 0..<len {
+        for _ in 0 ..< len {
             seq.append(try FfiConverterString.read(from: &buf))
         }
         return seq
@@ -2275,9 +2300,9 @@ private struct FfiConverterSequenceString: FfiConverterRustBuffer {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeChatMessage: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceTypeChatMessage: FfiConverterRustBuffer {
     typealias SwiftType = [ChatMessage]
 
     public static func write(_ value: [ChatMessage], into buf: inout [UInt8]) {
@@ -2288,13 +2313,11 @@ private struct FfiConverterSequenceTypeChatMessage: FfiConverterRustBuffer {
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws
-        -> [ChatMessage]
-    {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChatMessage] {
         let len: Int32 = try readInt(&buf)
         var seq = [ChatMessage]()
         seq.reserveCapacity(Int(len))
-        for _ in 0..<len {
+        for _ in 0 ..< len {
             seq.append(try FfiConverterTypeChatMessage.read(from: &buf))
         }
         return seq
@@ -2303,13 +2326,13 @@ private struct FfiConverterSequenceTypeChatMessage: FfiConverterRustBuffer {
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
-private let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
+fileprivate let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
 
-private func uniffiRustCallAsync<F, T>(
+fileprivate func uniffiRustCallAsync<F, T>(
     rustFutureFunc: () -> UInt64,
-    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> Void,
+    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> (),
     completeFunc: (UInt64, UnsafeMutablePointer<RustCallStatus>) -> F,
-    freeFunc: (UInt64) -> Void,
+    freeFunc: (UInt64) -> (),
     liftFunc: (F) throws -> T,
     errorHandler: ((RustBuffer) throws -> Swift.Error)?
 ) async throws -> T {
@@ -2320,7 +2343,7 @@ private func uniffiRustCallAsync<F, T>(
     defer {
         freeFunc(rustFuture)
     }
-    var pollResult: Int8
+    var pollResult: Int8;
     repeat {
         pollResult = await withUnsafeContinuation {
             pollFunc(
@@ -2333,124 +2356,122 @@ private func uniffiRustCallAsync<F, T>(
         }
     } while pollResult != UNIFFI_RUST_FUTURE_POLL_READY
 
-    return try liftFunc(
-        makeRustCall(
-            { completeFunc(rustFuture, $0) },
-            errorHandler: errorHandler
-        ))
+    return try liftFunc(makeRustCall(
+        { completeFunc(rustFuture, $0) },
+        errorHandler: errorHandler
+    ))
 }
 
 // Callback handlers for an async calls.  These are invoked by Rust when the future is ready.  They
 // lift the return value or error and resume the suspended function.
-private func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
+fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
     if let continuation = try? uniffiContinuationHandleMap.remove(handle: handle) {
         continuation.resume(returning: pollResult)
     } else {
         print("uniffiFutureContinuationCallback invalid handle")
     }
 }
-/// Create an assistant message.
-public func assistantMessage(content: String) -> ChatMessage {
-    return try! FfiConverterTypeChatMessage_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_assistant_message(
-                FfiConverterString.lower(content), $0
-            )
-        })
+/**
+ * Create an assistant message.
+ */
+public func assistantMessage(content: String) -> ChatMessage  {
+    return try!  FfiConverterTypeChatMessage_lift(try! rustCall() {
+    uniffi_onde_fn_func_assistant_message(
+        FfiConverterString.lower(content),$0
+    )
+})
 }
-/// Return the platform-appropriate default GGUF model configuration.
-///
-/// - tvOS / iOS / Android → Qwen 2.5 1.5B (~941 MB)
-/// - macOS / Windows / Linux → Qwen 2.5 3B (~1.93 GB)
-public func defaultModelConfig() -> GgufModelConfig {
-    return try! FfiConverterTypeGgufModelConfig_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_default_model_config(
-                $0
-            )
-        })
+/**
+ * Return the platform-appropriate default GGUF model configuration.
+ *
+ * - tvOS / iOS / Android → Qwen 2.5 1.5B (~941 MB)
+ * - macOS / Windows / Linux → Qwen 2.5 3B (~1.93 GB)
+ */
+public func defaultModelConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_default_model_config($0
+    )
+})
 }
-/// Return default sampling parameters for creative chat.
-public func defaultSamplingConfig() -> SamplingConfig {
-    return try! FfiConverterTypeSamplingConfig_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_default_sampling_config(
-                $0
-            )
-        })
+/**
+ * Return default sampling parameters for creative chat.
+ */
+public func defaultSamplingConfig() -> SamplingConfig  {
+    return try!  FfiConverterTypeSamplingConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_default_sampling_config($0
+    )
+})
 }
-/// Return deterministic (greedy) sampling parameters.
-public func deterministicSamplingConfig() -> SamplingConfig {
-    return try! FfiConverterTypeSamplingConfig_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_deterministic_sampling_config(
-                $0
-            )
-        })
+/**
+ * Return deterministic (greedy) sampling parameters.
+ */
+public func deterministicSamplingConfig() -> SamplingConfig  {
+    return try!  FfiConverterTypeSamplingConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_deterministic_sampling_config($0
+    )
+})
 }
-/// Return conservative sampling parameters for mobile devices.
-public func mobileSamplingConfig() -> SamplingConfig {
-    return try! FfiConverterTypeSamplingConfig_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_mobile_sampling_config(
-                $0
-            )
-        })
+/**
+ * Return conservative sampling parameters for mobile devices.
+ */
+public func mobileSamplingConfig() -> SamplingConfig  {
+    return try!  FfiConverterTypeSamplingConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_mobile_sampling_config($0
+    )
+})
 }
-/// Return the Qwen 2.5 1.5B GGUF model configuration (~941 MB).
-public func qwen2515bConfig() -> GgufModelConfig {
-    return try! FfiConverterTypeGgufModelConfig_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_qwen25_1_5b_config(
-                $0
-            )
-        })
+/**
+ * Return the Qwen 2.5 1.5B GGUF model configuration (~941 MB).
+ */
+public func qwen2515bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen25_1_5b_config($0
+    )
+})
 }
-/// Return the Qwen 2.5 3B GGUF model configuration (~1.93 GB).
-public func qwen253bConfig() -> GgufModelConfig {
-    return try! FfiConverterTypeGgufModelConfig_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_qwen25_3b_config(
-                $0
-            )
-        })
+/**
+ * Return the Qwen 2.5 3B GGUF model configuration (~1.93 GB).
+ */
+public func qwen253bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen25_3b_config($0
+    )
+})
 }
-/// Stream a chat message through the engine, delivering token chunks to
-/// the `listener` callback.
-///
-/// This is a **free function** (not an Object method) because UniFFI 0.31
-/// requires `callback_interface` parameters to be passed to free functions
-/// rather than Object methods.
-///
-/// The `listener.on_chunk()` callback is called for each token delta.
-/// Return `true` to continue, or `false` to cancel early.
-///
-/// The user message and assembled reply are automatically appended to the
-/// engine's conversation history when streaming completes.
-///
-/// ```swift
-/// class MyHandler: StreamChunkListener {
-/// func onChunk(chunk: StreamChunk) -> Bool {
-/// print(chunk.delta, terminator: "")
-/// return !chunk.done
-/// }
-/// }
-///
-/// try await streamChatMessage(
-/// engine: engine,
-/// message: "Tell me a story.",
-/// listener: MyHandler()
-/// )
-/// ```
-public func streamChatMessage(
-    engine: OndeChatEngine, message: String, listener: StreamChunkListener
-) async throws {
+/**
+ * Stream a chat message through the engine, delivering token chunks to
+ * the `listener` callback.
+ *
+ * This is a **free function** (not an Object method) because UniFFI 0.31
+ * requires `callback_interface` parameters to be passed to free functions
+ * rather than Object methods.
+ *
+ * The `listener.on_chunk()` callback is called for each token delta.
+ * Return `true` to continue, or `false` to cancel early.
+ *
+ * The user message and assembled reply are automatically appended to the
+ * engine's conversation history when streaming completes.
+ *
+ * ```swift
+ * class MyHandler: StreamChunkListener {
+ * func onChunk(chunk: StreamChunk) -> Bool {
+ * print(chunk.delta, terminator: "")
+ * return !chunk.done
+ * }
+ * }
+ *
+ * try await streamChatMessage(
+ * engine: engine,
+ * message: "Tell me a story.",
+ * listener: MyHandler()
+ * )
+ * ```
+ */
+public func streamChatMessage(engine: OndeChatEngine, message: String, listener: StreamChunkListener)async throws   {
     return
-        try await uniffiRustCallAsync(
+        try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_onde_fn_func_stream_chat_message(
-                    FfiConverterTypeOndeChatEngine_lower(engine), FfiConverterString.lower(message),
-                    FfiConverterCallbackInterfaceStreamChunkListener_lower(listener)
+                uniffi_onde_fn_func_stream_chat_message(FfiConverterTypeOndeChatEngine_lower(engine),FfiConverterString.lower(message),FfiConverterCallbackInterfaceStreamChunkListener_lower(listener)
                 )
             },
             pollFunc: ffi_onde_rust_future_poll_void,
@@ -2460,23 +2481,25 @@ public func streamChatMessage(
             errorHandler: FfiConverterTypeInferenceError_lift
         )
 }
-/// Create a system message.
-public func systemMessage(content: String) -> ChatMessage {
-    return try! FfiConverterTypeChatMessage_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_system_message(
-                FfiConverterString.lower(content), $0
-            )
-        })
+/**
+ * Create a system message.
+ */
+public func systemMessage(content: String) -> ChatMessage  {
+    return try!  FfiConverterTypeChatMessage_lift(try! rustCall() {
+    uniffi_onde_fn_func_system_message(
+        FfiConverterString.lower(content),$0
+    )
+})
 }
-/// Create a user message.
-public func userMessage(content: String) -> ChatMessage {
-    return try! FfiConverterTypeChatMessage_lift(
-        try! rustCall {
-            uniffi_onde_fn_func_user_message(
-                FfiConverterString.lower(content), $0
-            )
-        })
+/**
+ * Create a user message.
+ */
+public func userMessage(content: String) -> ChatMessage  {
+    return try!  FfiConverterTypeChatMessage_lift(try! rustCall() {
+    uniffi_onde_fn_func_user_message(
+        FfiConverterString.lower(content),$0
+    )
+})
 }
 
 private enum InitializationResult {
@@ -2494,79 +2517,79 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if uniffi_onde_checksum_func_assistant_message() != 47135 {
+    if (uniffi_onde_checksum_func_assistant_message() != 47135) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_default_model_config() != 34766 {
+    if (uniffi_onde_checksum_func_default_model_config() != 34766) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_default_sampling_config() != 57358 {
+    if (uniffi_onde_checksum_func_default_sampling_config() != 57358) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_deterministic_sampling_config() != 3003 {
+    if (uniffi_onde_checksum_func_deterministic_sampling_config() != 3003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_mobile_sampling_config() != 46137 {
+    if (uniffi_onde_checksum_func_mobile_sampling_config() != 46137) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_qwen25_1_5b_config() != 41668 {
+    if (uniffi_onde_checksum_func_qwen25_1_5b_config() != 41668) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_qwen25_3b_config() != 36458 {
+    if (uniffi_onde_checksum_func_qwen25_3b_config() != 36458) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_stream_chat_message() != 5168 {
+    if (uniffi_onde_checksum_func_stream_chat_message() != 5168) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_system_message() != 55655 {
+    if (uniffi_onde_checksum_func_system_message() != 55655) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_func_user_message() != 23108 {
+    if (uniffi_onde_checksum_func_user_message() != 23108) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_clear_history() != 5662 {
+    if (uniffi_onde_checksum_method_ondechatengine_clear_history() != 5662) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_clear_system_prompt() != 46275 {
+    if (uniffi_onde_checksum_method_ondechatengine_clear_system_prompt() != 46275) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_generate() != 63069 {
+    if (uniffi_onde_checksum_method_ondechatengine_generate() != 63069) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_history() != 45301 {
+    if (uniffi_onde_checksum_method_ondechatengine_history() != 45301) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_info() != 42415 {
+    if (uniffi_onde_checksum_method_ondechatengine_info() != 42415) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_is_loaded() != 59838 {
+    if (uniffi_onde_checksum_method_ondechatengine_is_loaded() != 59838) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_load_default_model() != 32187 {
+    if (uniffi_onde_checksum_method_ondechatengine_load_default_model() != 32187) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_load_gguf_model() != 6873 {
+    if (uniffi_onde_checksum_method_ondechatengine_load_gguf_model() != 6873) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_push_history() != 61696 {
+    if (uniffi_onde_checksum_method_ondechatengine_push_history() != 61696) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_send_message() != 23695 {
+    if (uniffi_onde_checksum_method_ondechatengine_send_message() != 23695) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_set_sampling() != 10759 {
+    if (uniffi_onde_checksum_method_ondechatengine_set_sampling() != 10759) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_set_system_prompt() != 63168 {
+    if (uniffi_onde_checksum_method_ondechatengine_set_system_prompt() != 63168) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_ondechatengine_unload_model() != 33799 {
+    if (uniffi_onde_checksum_method_ondechatengine_unload_model() != 33799) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_constructor_ondechatengine_new() != 39683 {
+    if (uniffi_onde_checksum_constructor_ondechatengine_new() != 39683) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_onde_checksum_method_streamchunklistener_on_chunk() != 33920 {
+    if (uniffi_onde_checksum_method_streamchunklistener_on_chunk() != 33920) {
         return InitializationResult.apiChecksumMismatch
     }
 
