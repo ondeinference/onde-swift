@@ -14,6 +14,11 @@
   <a href="https://apps.apple.com/se/developer/splitfire-ab/id1831430993"><img src="https://img.shields.io/badge/App%20Store-live-235843?style=flat-square&labelColor=17211D" alt="App Store"></a>
 </p>
 
+## Compatibility
+
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fondeinference%2Fonde-swift%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/ondeinference/onde-swift)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fondeinference%2Fonde-swift%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/ondeinference/onde-swift)
+
 ---
 
 ## Installation
@@ -122,9 +127,9 @@ Call this once at app launch, before creating an `OndeChatEngine`.
 
 ## Documentation
 
-- [Swift API Reference](https://ondeinference.com/docs/swift-package)
-- [Developer Guide](https://ondeinference.com/docs/dev)
-- [Rust Crate (onde)](https://github.com/ondeinference/onde)
+- [SDK Reference](https://ondeinference.com/sdk)
+- [Developer Guide](https://docs.rs/onde/latest/onde/)
+- [Onde Inference Rust Crate](https://github.com/ondeinference/onde)
 
 ## License
 
