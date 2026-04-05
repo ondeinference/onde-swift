@@ -18,6 +18,11 @@
   <a href="https://github.com/ondeinference/onde">Rust SDK</a> · <a href="https://pub.dev/packages/onde_inference">Flutter SDK</a> · <a href="https://ondeinference.com">Website</a>
 </p>
 
+## Compatibility
+
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fondeinference%2Fonde-swift%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/ondeinference/onde-swift)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fondeinference%2Fonde-swift%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/ondeinference/onde-swift)
+
 ---
 
 ## Installation
@@ -134,9 +139,9 @@ private func setupHfCache(at base: URL) {
 
 ## Documentation
 
-- [Swift API Reference](https://ondeinference.com/docs/swift-package)
-- [Developer Guide](https://ondeinference.com/docs/dev)
-- [Rust Crate (onde)](https://github.com/ondeinference/onde)
+- [SDK Reference](https://ondeinference.com/sdk)
+- [Developer Guide](https://docs.rs/onde/latest/onde/)
+- [Onde Inference Rust Crate](https://github.com/ondeinference/onde)
 
 ## License
 
