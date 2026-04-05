@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/ondeinference/onde/main/assets/onde-inference-logo.svg" alt="Onde Inference" width="96">
 </p>
 
-<h1 align="center">Onde</h1>
+<h1 align="center">Onde Inference</h1>
 
 <p align="center">
   <strong>On-device LLM inference for Swift — optimized for <a href="https://en.wikipedia.org/wiki/Apple_silicon">Apple silicon</a>.</strong>
@@ -12,6 +12,10 @@
   <a href="https://swiftpackageindex.com/ondeinference/onde-swift"><img src="https://img.shields.io/badge/Swift%20Package%20Index-onde--swift-235843?style=flat-square&labelColor=17211D" alt="Swift Package Index"></a>
   <a href="https://ondeinference.com"><img src="https://img.shields.io/badge/ondeinference.com-235843?style=flat-square&labelColor=17211D" alt="Website"></a>
   <a href="https://apps.apple.com/se/developer/splitfire-ab/id1831430993"><img src="https://img.shields.io/badge/App%20Store-live-235843?style=flat-square&labelColor=17211D" alt="App Store"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ondeinference/onde">Rust SDK</a> · <a href="https://pub.dev/packages/onde_inference">Flutter SDK</a> · <a href="https://ondeinference.com">Website</a>
 </p>
 
 ---
@@ -96,29 +100,37 @@ let result = try await engine.generate(
 
 ## Sandboxed App Setup
 
-On iOS and App Store macOS, configure the HuggingFace cache directory before any inference call:
+On iOS and App Store macOS, the default `~/.cache/huggingface` is outside the app sandbox. This helper seeds `HF_HOME` inside the App Group shared container (`group.com.ondeinference.apps`) so all Onde-powered apps share downloaded models. Call once at app launch before creating an `OndeChatEngine`.
 
 ```swift
 import Foundation
 
 func setupInferenceEnvironment() {
-    let appSupport = FileManager.default
-        .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    guard let container = FileManager.default.containerURL(
+        forSecurityApplicationGroupIdentifier: "group.com.ondeinference.apps"
+    ) else {
+        // Fall back to app-private Application Support if App Group is unavailable.
+        let appSupport = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        setupHfCache(at: appSupport)
+        return
+    }
+    setupHfCache(at: container)
+}
 
-    let hfHome = appSupport.appendingPathComponent("huggingface")
+private func setupHfCache(at base: URL) {
+    let hfHome = base.appendingPathComponent("models")
     let hfHub  = hfHome.appendingPathComponent("hub")
     try? FileManager.default.createDirectory(at: hfHub, withIntermediateDirectories: true)
 
     setenv("HF_HOME",      hfHome.path, 1)
     setenv("HF_HUB_CACHE", hfHub.path,  1)
 
-    let tmp = appSupport.appendingPathComponent("tmp")
+    let tmp = base.appendingPathComponent("tmp")
     try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
     setenv("TMPDIR", tmp.path, 1)
 }
 ```
-
-Call this once at app launch, before creating an `OndeChatEngine`.
 
 ## Documentation
 
@@ -128,7 +140,7 @@ Call this once at app launch, before creating an `OndeChatEngine`.
 
 ## License
 
-[MIT](LICENSE)
+MIT © [Splitfire AB](https://splitfire.se)
 
 ---
 
