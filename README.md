@@ -9,7 +9,9 @@
 </p>
 
 <p align="center">
+  <a href="https://crates.io/crates/onde"><img src="https://img.shields.io/crates/v/onde?style=flat-square&color=235843&labelColor=17211D&label=crates.io" alt="crates.io"></a>
   <a href="https://swiftpackageindex.com/ondeinference/onde-swift"><img src="https://img.shields.io/badge/Swift%20Package%20Index-onde--swift-235843?style=flat-square&labelColor=17211D" alt="Swift Package Index"></a>
+  <a href="https://pub.dev/packages/onde_inference"><img src="https://img.shields.io/pub/v/onde_inference?style=flat-square&color=235843&labelColor=17211D&label=pub.dev" alt="pub.dev"></a>
   <a href="https://ondeinference.com"><img src="https://img.shields.io/badge/ondeinference.com-235843?style=flat-square&labelColor=17211D" alt="Website"></a>
   <a href="https://apps.apple.com/se/developer/splitfire-ab/id1831430993"><img src="https://img.shields.io/badge/App%20Store-live-235843?style=flat-square&labelColor=17211D" alt="App Store"></a>
 </p>
@@ -145,7 +147,12 @@ private func setupHfCache(at base: URL) {
 
 ## License
 
-MIT © [Splitfire AB](https://splitfire.se)
+Onde is dual-licensed under **MIT** and **Apache 2.0**. You may use it under either license at your option.
+
+- [MIT License](https://github.com/ondeinference/onde/blob/main/LICENSE-MIT)
+- [Apache License 2.0](https://github.com/ondeinference/onde/blob/main/LICENSE-APACHE)
+
+© 2026 [Splitfire AB](https://splitfire.se)
 
 ---
 
