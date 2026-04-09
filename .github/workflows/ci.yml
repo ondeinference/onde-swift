@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate manifest
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump package
+        run: swift package dump-package
+      - name: Resolve dependencies
+        run: swift package resolve
+
+  build-macos:
+    name: Build (macOS)
+    needs: validate
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+
+  build-ios:
+    name: Build (iOS)
+    needs: validate
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for iOS
+        run: >
+          xcodebuild build
+          -scheme Onde
+          -destination 'generic/platform=iOS'
+          -skipPackagePluginValidation
+          -skipMacroValidation
+
+  build-tvos:
+    name: Build (tvOS)
+    needs: validate
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for tvOS
+        run: >
+          xcodebuild build
+          -scheme Onde
+          -destination 'generic/platform=tvOS'
+          -skipPackagePluginValidation
+          -skipMacroValidation
+
+  build-visionos:
+    name: Build (visionOS)
+    needs: validate
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for visionOS
+        run: >
+          xcodebuild build
+          -scheme Onde
+          -destination 'generic/platform=visionOS'
+          -skipPackagePluginValidation
+          -skipMacroValidation

@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:6.2
 import PackageDescription
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +26,7 @@ let package = Package(
         .iOS(.v15),
         .macOS(.v11),
         .tvOS(.v15),
+        .visionOS(.v26),
     ],
     products: [
         .library(name: "Onde", targets: ["Onde"])
