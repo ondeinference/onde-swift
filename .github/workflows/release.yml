@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate package
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build for macOS
+        run: swift build
+
+      - name: Build for iOS
+        run: >
+          xcodebuild build
+          -scheme Onde
+          -destination 'generic/platform=iOS'
+          -skipPackagePluginValidation
+          -skipMacroValidation
+
+  release:
+    name: Create GitHub Release
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            ## Onde Swift SDK ${{ github.ref_name }}
+
+            ### Installation
+
+            Add Onde to your `Package.swift` dependencies:
+
+            ```swift
+            .package(url: "https://github.com/ondeinference/onde-swift.git", from: "${{ github.ref_name }}")
+            ```
+
+            ### Platforms
+
+            | Platform | Minimum Version |
+            |----------|----------------|
+            | iOS      | 15.0           |
+            | macOS    | 11.0           |
+            | tvOS     | 15.0           |
+            | visionOS | 26.0           |
+            | watchOS  | 10.0           |
+
+            ### What's Changed
+
+            See the full changelog in the [Onde ${{ github.ref_name }}](https://github.com/ondeinference/onde/releases/tag/${{ github.ref_name }}) release.
