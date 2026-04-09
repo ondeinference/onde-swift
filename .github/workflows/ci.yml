@@ -74,3 +74,17 @@ jobs:
           -destination 'generic/platform=visionOS'
           -skipPackagePluginValidation
           -skipMacroValidation
+
+  build-watchos:
+    name: Build (watchOS)
+    needs: validate
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for watchOS
+        run: >
+          xcodebuild build
+          -scheme Onde
+          -destination 'generic/platform=watchOS'
+          -skipPackagePluginValidation
+          -skipMacroValidation

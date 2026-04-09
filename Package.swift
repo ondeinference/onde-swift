@@ -27,6 +27,7 @@ let package = Package(
         .macOS(.v11),
         .tvOS(.v15),
         .visionOS(.v26),
+        .watchOS(.v10),
     ],
     products: [
         .library(name: "Onde", targets: ["Onde"])
