@@ -35,8 +35,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "OndeFramework",
-            url: "https://github.com/ondeinference/onde/releases/download/0.1.6/OndeFramework.xcframework.zip",
-            checksum: "ce1b91dd0b615ecb62c34c6a3850d473c80aa45fb957e136b4647dbbdd46dd7d"
+            url: "https://github.com/ondeinference/onde/releases/download/0.1.7/OndeFramework.xcframework.zip",
+            checksum: "81b8b4892a5e88f2338d3cbabf388416e19b5b8608c5fb4450e5b903f9b661e6"
         ),
         .target(
             name: "Onde",
