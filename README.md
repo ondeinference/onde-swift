@@ -5,19 +5,17 @@
 <h1 align="center">Onde Inference</h1>
 
 <p align="center">
-  <strong>On-device LLM inference for Swift — optimized for <a href="https://en.wikipedia.org/wiki/Apple_silicon">Apple silicon</a>.</strong>
+  <strong>Run LLMs on-device from Swift, with first-class support for <a href="https://en.wikipedia.org/wiki/Apple_silicon">Apple silicon</a>.</strong>
 </p>
 
 <p align="center">
-  <a href="https://crates.io/crates/onde"><img src="https://img.shields.io/crates/v/onde?style=flat-square&color=235843&labelColor=17211D&label=crates.io" alt="crates.io"></a>
   <a href="https://swiftpackageindex.com/ondeinference/onde-swift"><img src="https://img.shields.io/badge/Swift%20Package%20Index-onde--swift-235843?style=flat-square&labelColor=17211D" alt="Swift Package Index"></a>
-  <a href="https://pub.dev/packages/onde_inference"><img src="https://img.shields.io/pub/v/onde_inference?style=flat-square&color=235843&labelColor=17211D&label=pub.dev" alt="pub.dev"></a>
   <a href="https://ondeinference.com"><img src="https://img.shields.io/badge/ondeinference.com-235843?style=flat-square&labelColor=17211D" alt="Website"></a>
-  <a href="https://apps.apple.com/se/developer/splitfire-ab/id1831430993"><img src="https://img.shields.io/badge/App%20Store-live-235843?style=flat-square&labelColor=17211D" alt="App Store"></a>
+  <a href="https://github.com/ondeinference/onde/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-235843?style=flat-square&labelColor=17211D" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ondeinference/onde">Rust SDK</a> · <a href="https://pub.dev/packages/onde_inference">Flutter SDK</a> · <a href="https://ondeinference.com">Website</a>
+  <a href="https://github.com/ondeinference/onde">Rust SDK</a> · <a href="https://central.sonatype.com/artifact/com.ondeinference/onde-inference">Kotlin Multiplatform SDK</a> · <a href="https://pub.dev/packages/onde_inference">Flutter SDK</a> · <a href="https://www.npmjs.com/package/@ondeinference/react-native">React Native SDK</a> · <a href="https://ondeinference.com">Website</a>
 </p>
 
 ## Compatibility
@@ -29,7 +27,7 @@
 
 ## Installation
 
-In Xcode: **File → Add Package Dependencies** and enter:
+In Xcode, open **File → Add Package Dependencies** and enter:
 
 ```
 https://github.com/ondeinference/onde-swift
@@ -63,9 +61,9 @@ import Onde
 
 let engine = OndeChatEngine()
 
-// Load the platform-appropriate default model:
-//   iOS / tvOS → Qwen 2.5 1.5B (~941 MB)
-//   macOS      → Qwen 2.5 3B   (~1.93 GB)
+// Load the default model for the current device:
+//   iOS / tvOS → Qwen 2.5 Coder 1.5B (~941 MB)
+//   macOS      → Qwen 2.5 Coder 3B (~1.93 GB)
 let elapsed = try await engine.loadDefaultModel(
     systemPrompt: "You are a helpful assistant.",
     sampling: nil
@@ -96,7 +94,7 @@ try await streamChatMessage(
 
 ## One-Shot Generation
 
-Run inference without modifying conversation history:
+This runs inference without changing conversation history:
 
 ```swift
 let result = try await engine.generate(
@@ -107,7 +105,7 @@ let result = try await engine.generate(
 
 ## Sandboxed App Setup
 
-On iOS and App Store macOS, the default `~/.cache/huggingface` is outside the app sandbox. This helper seeds `HF_HOME` inside the App Group shared container (`group.com.ondeinference.apps`) so all Onde-powered apps share downloaded models. Call once at app launch before creating an `OndeChatEngine`.
+On iOS and App Store macOS, the default `~/.cache/huggingface` path sits outside the app sandbox. This helper points `HF_HOME` at the App Group shared container (`group.com.ondeinference.apps`) so Onde-powered apps can share downloaded models. Call it once at app launch before creating an `OndeChatEngine`.
 
 ```swift
 import Foundation
@@ -116,7 +114,7 @@ func setupInferenceEnvironment() {
     guard let container = FileManager.default.containerURL(
         forSecurityApplicationGroupIdentifier: "group.com.ondeinference.apps"
     ) else {
-        // Fall back to app-private Application Support if App Group is unavailable.
+        // Fall back to the app's private Application Support directory if the App Group is unavailable.
         let appSupport = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         setupHfCache(at: appSupport)
@@ -147,7 +145,7 @@ private func setupHfCache(at base: URL) {
 
 ## License
 
-Onde is dual-licensed under **MIT** and **Apache 2.0**. You may use it under either license at your option.
+Onde is dual-licensed under **MIT** and **Apache 2.0**. You can use either one.
 
 - [MIT License](https://github.com/ondeinference/onde/blob/main/LICENSE-MIT)
 - [Apache License 2.0](https://github.com/ondeinference/onde/blob/main/LICENSE-APACHE)
