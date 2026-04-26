@@ -602,6 +602,18 @@ public protocol OndeChatEngineProtocol: AnyObject, Sendable {
     func isLoaded() async  -> Bool
     
     /**
+     * Load the model assigned to this app via the Onde dashboard.
+     *
+     * The `app_id` and `app_secret` identify your app on
+     * [ondeinference.com](https://ondeinference.com). The backend returns
+     * the GGUF model configuration assigned to your app; if no model is
+     * assigned (HTTP 404) the platform default is loaded instead.
+     *
+     * Returns the wall-clock loading time in seconds.
+     */
+    func loadAssignedModel(appId: String, appSecret: String, systemPrompt: String?, sampling: SamplingConfig?) async throws  -> Double
+    
+    /**
      * Load the platform-appropriate default model.
      *
      * - tvOS / iOS / Android → Qwen 2.5 1.5B (~941 MB)
@@ -852,6 +864,33 @@ open func isLoaded()async  -> Bool  {
             liftFunc: FfiConverterBool.lift,
             errorHandler: nil
             
+        )
+}
+    
+    /**
+     * Load the model assigned to this app via the Onde dashboard.
+     *
+     * The `app_id` and `app_secret` identify your app on
+     * [ondeinference.com](https://ondeinference.com). The backend returns
+     * the GGUF model configuration assigned to your app; if no model is
+     * assigned (HTTP 404) the platform default is loaded instead.
+     *
+     * Returns the wall-clock loading time in seconds.
+     */
+open func loadAssignedModel(appId: String, appSecret: String, systemPrompt: String?, sampling: SamplingConfig?)async throws  -> Double  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_load_assigned_model(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(appId),FfiConverterString.lower(appSecret),FfiConverterOptionString.lower(systemPrompt),FfiConverterOptionTypeSamplingConfig.lower(sampling)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_f64,
+            completeFunc: ffi_onde_rust_future_complete_f64,
+            freeFunc: ffi_onde_rust_future_free_f64,
+            liftFunc: FfiConverterDouble.lift,
+            errorHandler: FfiConverterTypeInferenceError_lift
         )
 }
     
@@ -1233,6 +1272,12 @@ public struct GgufModelConfig: Equatable, Hashable {
      * Approximate memory footprint description, e.g. `"~941 MB (GGUF Q4_K_M)"`.
      */
     public var approxMemory: String
+    /**
+     * Optional Jinja chat template string. When set, this overrides the
+     * template embedded in the GGUF file (if any). Required for older GGUF
+     * files that don't embed a chat template (e.g. TheBloke models).
+     */
+    public var chatTemplate: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1252,12 +1297,18 @@ public struct GgufModelConfig: Equatable, Hashable {
          */displayName: String, 
         /**
          * Approximate memory footprint description, e.g. `"~941 MB (GGUF Q4_K_M)"`.
-         */approxMemory: String) {
+         */approxMemory: String, 
+        /**
+         * Optional Jinja chat template string. When set, this overrides the
+         * template embedded in the GGUF file (if any). Required for older GGUF
+         * files that don't embed a chat template (e.g. TheBloke models).
+         */chatTemplate: String?) {
         self.modelId = modelId
         self.files = files
         self.tokModelId = tokModelId
         self.displayName = displayName
         self.approxMemory = approxMemory
+        self.chatTemplate = chatTemplate
     }
 
     
@@ -1280,7 +1331,8 @@ public struct FfiConverterTypeGgufModelConfig: FfiConverterRustBuffer {
                 files: FfiConverterSequenceString.read(from: &buf), 
                 tokModelId: FfiConverterOptionString.read(from: &buf), 
                 displayName: FfiConverterString.read(from: &buf), 
-                approxMemory: FfiConverterString.read(from: &buf)
+                approxMemory: FfiConverterString.read(from: &buf), 
+                chatTemplate: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1290,6 +1342,7 @@ public struct FfiConverterTypeGgufModelConfig: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.tokModelId, into: &buf)
         FfiConverterString.write(value.displayName, into: &buf)
         FfiConverterString.write(value.approxMemory, into: &buf)
+        FfiConverterOptionString.write(value.chatTemplate, into: &buf)
     }
 }
 
@@ -1329,6 +1382,10 @@ public struct InferenceResult: Equatable, Hashable {
      * Finish reason reported by the model (e.g. `"stop"`, `"length"`).
      */
     public var finishReason: String
+    /**
+     * Tool calls requested by the model (empty when no tools were invoked).
+     */
+    public var toolCalls: [ToolCallInfo]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1344,11 +1401,15 @@ public struct InferenceResult: Equatable, Hashable {
          */durationDisplay: String, 
         /**
          * Finish reason reported by the model (e.g. `"stop"`, `"length"`).
-         */finishReason: String) {
+         */finishReason: String, 
+        /**
+         * Tool calls requested by the model (empty when no tools were invoked).
+         */toolCalls: [ToolCallInfo]) {
         self.text = text
         self.durationSecs = durationSecs
         self.durationDisplay = durationDisplay
         self.finishReason = finishReason
+        self.toolCalls = toolCalls
     }
 
     
@@ -1370,7 +1431,8 @@ public struct FfiConverterTypeInferenceResult: FfiConverterRustBuffer {
                 text: FfiConverterString.read(from: &buf), 
                 durationSecs: FfiConverterDouble.read(from: &buf), 
                 durationDisplay: FfiConverterString.read(from: &buf), 
-                finishReason: FfiConverterString.read(from: &buf)
+                finishReason: FfiConverterString.read(from: &buf), 
+                toolCalls: FfiConverterSequenceTypeToolCallInfo.read(from: &buf)
         )
     }
 
@@ -1379,6 +1441,7 @@ public struct FfiConverterTypeInferenceResult: FfiConverterRustBuffer {
         FfiConverterDouble.write(value.durationSecs, into: &buf)
         FfiConverterString.write(value.durationDisplay, into: &buf)
         FfiConverterString.write(value.finishReason, into: &buf)
+        FfiConverterSequenceTypeToolCallInfo.write(value.toolCalls, into: &buf)
     }
 }
 
@@ -1699,6 +1762,233 @@ public func FfiConverterTypeStreamChunk_lift(_ buf: RustBuffer) throws -> Stream
 #endif
 public func FfiConverterTypeStreamChunk_lower(_ value: StreamChunk) -> RustBuffer {
     return FfiConverterTypeStreamChunk.lower(value)
+}
+
+
+/**
+ * Information about a single tool call requested by the model.
+ */
+public struct ToolCallInfo: Equatable, Hashable {
+    /**
+     * Unique identifier for this tool call (used to correlate results).
+     */
+    public var id: String
+    /**
+     * The name of the function the model wants to invoke.
+     */
+    public var functionName: String
+    /**
+     * JSON-encoded arguments for the function.
+     */
+    public var arguments: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Unique identifier for this tool call (used to correlate results).
+         */id: String, 
+        /**
+         * The name of the function the model wants to invoke.
+         */functionName: String, 
+        /**
+         * JSON-encoded arguments for the function.
+         */arguments: String) {
+        self.id = id
+        self.functionName = functionName
+        self.arguments = arguments
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ToolCallInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeToolCallInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ToolCallInfo {
+        return
+            try ToolCallInfo(
+                id: FfiConverterString.read(from: &buf), 
+                functionName: FfiConverterString.read(from: &buf), 
+                arguments: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ToolCallInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.functionName, into: &buf)
+        FfiConverterString.write(value.arguments, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeToolCallInfo_lift(_ buf: RustBuffer) throws -> ToolCallInfo {
+    return try FfiConverterTypeToolCallInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeToolCallInfo_lower(_ value: ToolCallInfo) -> RustBuffer {
+    return FfiConverterTypeToolCallInfo.lower(value)
+}
+
+
+/**
+ * A tool definition passed to the model so it knows which tools are available.
+ */
+public struct ToolDefinition: Equatable, Hashable {
+    /**
+     * Tool name (e.g. `"read_file"`).
+     */
+    public var name: String
+    /**
+     * Human-readable description of what the tool does.
+     */
+    public var description: String
+    /**
+     * JSON Schema string describing the tool's parameters.
+     */
+    public var parametersSchema: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Tool name (e.g. `"read_file"`).
+         */name: String, 
+        /**
+         * Human-readable description of what the tool does.
+         */description: String, 
+        /**
+         * JSON Schema string describing the tool's parameters.
+         */parametersSchema: String) {
+        self.name = name
+        self.description = description
+        self.parametersSchema = parametersSchema
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ToolDefinition: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeToolDefinition: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ToolDefinition {
+        return
+            try ToolDefinition(
+                name: FfiConverterString.read(from: &buf), 
+                description: FfiConverterString.read(from: &buf), 
+                parametersSchema: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ToolDefinition, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.description, into: &buf)
+        FfiConverterString.write(value.parametersSchema, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeToolDefinition_lift(_ buf: RustBuffer) throws -> ToolDefinition {
+    return try FfiConverterTypeToolDefinition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeToolDefinition_lower(_ value: ToolDefinition) -> RustBuffer {
+    return FfiConverterTypeToolDefinition.lower(value)
+}
+
+
+/**
+ * The result of executing a tool, sent back to the model.
+ */
+public struct ToolResult: Equatable, Hashable {
+    /**
+     * The tool call ID this result corresponds to.
+     */
+    public var toolCallId: String
+    /**
+     * The output produced by executing the tool.
+     */
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The tool call ID this result corresponds to.
+         */toolCallId: String, 
+        /**
+         * The output produced by executing the tool.
+         */content: String) {
+        self.toolCallId = toolCallId
+        self.content = content
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ToolResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeToolResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ToolResult {
+        return
+            try ToolResult(
+                toolCallId: FfiConverterString.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ToolResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.toolCallId, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeToolResult_lift(_ buf: RustBuffer) throws -> ToolResult {
+    return try FfiConverterTypeToolResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeToolResult_lower(_ value: ToolResult) -> RustBuffer {
+    return FfiConverterTypeToolResult.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -2323,6 +2613,31 @@ fileprivate struct FfiConverterSequenceTypeChatMessage: FfiConverterRustBuffer {
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeToolCallInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [ToolCallInfo]
+
+    public static func write(_ value: [ToolCallInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeToolCallInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ToolCallInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ToolCallInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeToolCallInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -2563,6 +2878,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_method_ondechatengine_is_loaded() != 59838) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_method_ondechatengine_load_assigned_model() != 25824) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_method_ondechatengine_load_default_model() != 32187) {
