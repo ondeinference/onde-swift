@@ -42,10 +42,5 @@ let package = Package(
             dependencies: [.target(name: "OndeFramework")],
             path: "Sources/Onde"
         ),
-        .executableTarget(
-            name: "OndeExample",
-            dependencies: [.target(name: "Onde")],
-            path: "Examples/OndeExample"
-        ),
     ]
 )
