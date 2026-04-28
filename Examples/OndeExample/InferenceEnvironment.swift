@@ -1,34 +1,28 @@
 import Foundation
 
-/// Configures the environment variables that the Onde Rust core requires when
-/// running inside an iOS/tvOS app sandbox.
+/// Points `HF_HOME` and `HF_HUB_CACHE` at the Onde shared App Group container
+/// so downloaded models are available to every Onde-powered app on the device.
 ///
-/// Call this **before** any `OndeChatEngine` method — ideally in your `@main`
-/// App struct's `init()`.
-///
-/// What each variable does:
-/// - `HF_HOME`      – root of the HuggingFace Hub cache inside the app container
-/// - `HF_HUB_CACHE` – models subdirectory (avoids the default `~/.cache` path
-///                    which is unreachable in the sandbox)
-/// - `TMPDIR`       – the system-provided temporary directory for the process
+/// Call this once at launch, before creating an `OndeChatEngine`.
 func setupInferenceEnvironment() {
     let fm = FileManager.default
 
-    // Base directory for all Onde / HuggingFace data.
-    // Application Support is backed up by iCloud by default; use Caches if
-    // you prefer a purgeable location and are OK re-downloading models.
-    let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    let hfHome = appSupport.appendingPathComponent("huggingface", isDirectory: true)
+    // All Onde apps use this App Group to share the HuggingFace model cache.
+    // If the group isn't available (e.g. entitlement missing during development),
+    // fall back to the app's own Application Support directory.
+    let base: URL = fm.containerURL(
+        forSecurityApplicationGroupIdentifier: "group.com.ondeinference.apps"
+    ) ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
 
-    // Create the directory tree up-front so hf-hub never has to.
-    let hfHubCache = hfHome.appendingPathComponent("hub", isDirectory: true)
+    let hfHome     = base.appendingPathComponent("models", isDirectory: true)
+    let hfHubCache = hfHome.appendingPathComponent("hub",    isDirectory: true)
     try? fm.createDirectory(at: hfHubCache, withIntermediateDirectories: true)
 
     setenv("HF_HOME",      hfHome.path,     1)
     setenv("HF_HUB_CACHE", hfHubCache.path, 1)
 
-    // The Rust std-lib respects TMPDIR; make sure it points inside our sandbox.
-    if let tmp = ProcessInfo.processInfo.environment["TMPDIR"] {
-        setenv("TMPDIR", tmp, 1)   // already set by iOS — just make it explicit
-    }
+    // Make sure TMPDIR points inside the sandbox for the Rust side.
+    let tmp = base.appendingPathComponent("tmp", isDirectory: true)
+    try? fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+    setenv("TMPDIR", tmp.path, 1)
 }

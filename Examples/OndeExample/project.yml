@@ -20,6 +20,11 @@ targets:
         excludes:
           - project.yml
           - "*.xcodeproj"
+    entitlements:
+      path: OndeExample.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.ondeinference.apps
     dependencies:
       - package: Onde
         product: Onde
