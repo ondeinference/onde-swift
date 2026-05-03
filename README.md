@@ -5,7 +5,7 @@
 <h1 align="center">Onde Inference</h1>
 
 <p align="center">
-  <strong>Run LLMs on-device from Swift, with first-class support for <a href="https://en.wikipedia.org/wiki/Apple_silicon">Apple silicon</a>.</strong>
+  <strong>Run LLMs on-device from Swift with <a href="https://ondeinference.com/">Onde Inference</a>, with first-class support for <a href="https://en.wikipedia.org/wiki/Apple_silicon">Apple silicon</a>.</strong>
 </p>
 
 <p align="center">
@@ -139,9 +139,10 @@ private func setupHfCache(at base: URL) {
 
 ## Documentation
 
-- [SDK Reference](https://ondeinference.com/sdk)
+- [on-device AI inference for iOS and macOS](https://ondeinference.com/sdk/swift)
 - [Developer Guide](https://docs.rs/onde/latest/onde/)
 - [Onde Inference Rust Crate](https://github.com/ondeinference/onde)
+- [Onde CLI](https://github.com/ondeinference/onde-cli), for testing model downloads and GGUF export before wiring them into a Swift app
 
 ## License
 
@@ -150,10 +151,8 @@ Onde is dual-licensed under **MIT** and **Apache 2.0**. You can use either one.
 - [MIT License](https://github.com/ondeinference/onde/blob/main/LICENSE-MIT)
 - [Apache License 2.0](https://github.com/ondeinference/onde/blob/main/LICENSE-APACHE)
 
-© 2026 [Splitfire AB](https://splitfire.se)
-
 ---
 
-<p align="center">
-  <sub>© 2026 <a href="https://ondeinference.com">Onde Inference</a></sub>
-</p>
+## Copyright
+
+© 2026 [Onde Inference](https://ondeinference.com) (Splitfire AB).
