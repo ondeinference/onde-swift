@@ -1,24 +1,22 @@
 // swift-tools-version:6.2
 import PackageDescription
 
-// ─────────────────────────────────────────────────────────────────────────────
 // LOCAL DEVELOPMENT
 //
-// When working on the Onde Rust crate locally, swap the url-based binary
-// target below to a path-based one pointing at your local XCFramework:
+// When you are working on the Onde Rust crate locally, swap the URL-based
+// binary target below for a path-based one that points at your local XCFramework:
 //
 //     name: "OndeFramework"
 //     path: "./../onde/sdk/Onde/OndeFramework.xcframework"
 //
-// Run the build script first to produce the framework:
+// Build the framework first:
 //   cd onde && .github/scripts/build-swift-xcframework.sh
 //
 // DISTRIBUTION
 //
-// The url + checksum below are updated automatically by CI on every release.
-// Do not edit them by hand — they are rewritten by build-swift-xcframework.yml
-// when a new onde GitHub Release is published.
-// ─────────────────────────────────────────────────────────────────────────────
+// CI updates the URL and checksum on every release.
+// Do not edit them by hand. `build-swift-xcframework.yml` rewrites them when
+// a new onde GitHub Release goes out.
 
 let package = Package(
     name: "Onde",
