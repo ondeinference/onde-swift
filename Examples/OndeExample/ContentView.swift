@@ -1,4 +1,5 @@
 import SwiftUI
+import Onde
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARK: - Root view
@@ -7,32 +8,127 @@ import SwiftUI
 struct ContentView: View {
 
     @StateObject private var viewModel = ChatViewModel()
+    @State private var showingSettings = false
+
+    @AppStorage("onde.example.systemPrompt")
+    private var systemPrompt: String = ExampleDefaults.systemPrompt
+
+    @AppStorage("onde.example.samplingPreset")
+    private var samplingPresetRawValue: String = SamplingPreset.balanced.rawValue
+
+    private var samplingPreset: SamplingPreset {
+        get { SamplingPreset(rawValue: samplingPresetRawValue) ?? .balanced }
+        set { samplingPresetRawValue = newValue.rawValue }
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HeaderView(isReady: viewModel.isModelReady)
+        NavigationStack {
+            VStack(spacing: 0) {
+                HeaderView(
+                    info: viewModel.engineInfo,
+                    isLoading: viewModel.isModelLoading,
+                    isSending: viewModel.isSending
+                )
 
-            Divider()
+                Divider()
 
-            ZStack {
-                MessageListView(messages: viewModel.messages)
+                ZStack {
+                    if viewModel.messages.isEmpty {
+                        EmptyStateView(
+                            isModelReady: viewModel.isModelReady,
+                            isModelLoading: viewModel.isModelLoading,
+                            loadingProgress: viewModel.loadingProgress,
+                            promptSuggestions: ExampleDefaults.promptSuggestions,
+                            onPromptTap: { suggestion in
+                                viewModel.sendSuggestion(suggestion)
+                            },
+                            onRetry: {
+                                Task {
+                                    await viewModel.retryLoadingModel(
+                                        systemPrompt: systemPrompt,
+                                        samplingPreset: samplingPreset
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        MessageListView(messages: viewModel.messages)
+                    }
 
-                if viewModel.isModelLoading {
-                    LoadingOverlayView(progress: viewModel.loadingProgress)
+                    if viewModel.isModelLoading {
+                        LoadingOverlayView(progress: viewModel.loadingProgress)
+                    }
+                }
+
+                Divider()
+
+                InputBarView(
+                    isSending: viewModel.isSending,
+                    isModelReady: viewModel.isModelReady,
+                    placeholder: viewModel.isModelReady
+                        ? "Message the on-device model…"
+                        : "Waiting for model to load…",
+                    onSend: { text in viewModel.send(text: text) },
+                    onCancel: { viewModel.cancelStreaming() }
+                )
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    if viewModel.hasMessages {
+                        Button(role: .destructive) {
+                            Task {
+                                await viewModel.clearConversation()
+                            }
+                        } label: {
+                            Label("Clear", systemImage: "trash")
+                        }
+                        .disabled(viewModel.isBusy)
+                    }
+                }
+
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await viewModel.reloadModel(
+                                systemPrompt: systemPrompt,
+                                samplingPreset: samplingPreset
+                            )
+                        }
+                    } label: {
+                        Label("Reload model", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(viewModel.isBusy)
+
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("Model settings", systemImage: "slider.horizontal.3")
+                    }
+                    .disabled(viewModel.isBusy)
                 }
             }
-
-            Divider()
-
-            InputBarView(
-                isSending: viewModel.isSending,
-                isModelReady: viewModel.isModelReady,
-                onSend: { text in viewModel.send(text: text) },
-                onCancel: { viewModel.cancelStreaming() }
-            )
         }
         .task {
-            await viewModel.loadModel()
+            await viewModel.loadModelIfNeeded(
+                systemPrompt: systemPrompt,
+                samplingPreset: samplingPreset
+            )
+        }
+        .sheet(isPresented: $showingSettings) {
+            ModelSettingsSheet(
+                systemPrompt: systemPrompt,
+                samplingPreset: samplingPreset
+            ) { updatedPrompt, updatedPreset in
+                systemPrompt = updatedPrompt
+                samplingPresetRawValue = updatedPreset.rawValue
+                Task {
+                    await viewModel.applySettings(
+                        systemPrompt: updatedPrompt,
+                        samplingPreset: updatedPreset
+                    )
+                }
+            }
         }
         .alert(
             "Error",
@@ -54,24 +150,86 @@ struct ContentView: View {
 // ─────────────────────────────────────────────────────────────────────────────
 
 private struct HeaderView: View {
-    let isReady: Bool
+    let info: EngineInfo
+    let isLoading: Bool
+    let isSending: Bool
+
+    private var statusText: String {
+        if isLoading {
+            return "Loading"
+        }
+        if isSending {
+            return "Generating"
+        }
+
+        switch info.status {
+        case .ready:
+            return "Ready"
+        case .generating:
+            return "Generating"
+        case .loading:
+            return "Loading"
+        case .error:
+            return "Error"
+        case .unloaded:
+            return "Unloaded"
+        }
+    }
+
+    private var statusColor: Color {
+        if isLoading {
+            return .orange
+        }
+        if isSending {
+            return .blue
+        }
+
+        switch info.status {
+        case .ready:
+            return .green
+        case .generating:
+            return .blue
+        case .loading:
+            return .orange
+        case .error:
+            return .red
+        case .unloaded:
+            return .secondary
+        }
+    }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "brain.head.profile")
-                .font(.title2)
-                .foregroundStyle(isReady ? .green : .secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "brain.head.profile")
+                    .font(.title2)
+                    .foregroundStyle(statusColor)
 
-            Text("Onde Chat")
-                .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Onde Chat")
+                        .font(.headline)
 
-            Spacer()
+                    Text(info.modelName ?? "Local development example")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-            if isReady {
-                Label("On-device", systemImage: "iphone.and.arrow.forward")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Spacer()
+
+                Text(statusText)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(statusColor.opacity(0.14), in: Capsule())
+                    .foregroundStyle(statusColor)
             }
+
+            HStack(spacing: 12) {
+                Label(info.approxMemory ?? "—", systemImage: "memorychip")
+                Label("\(info.historyLength) turns", systemImage: "text.bubble")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
@@ -88,11 +246,10 @@ private struct LoadingOverlayView: View {
 
     var body: some View {
         ZStack {
-            Color(white: 1.0)
-                .colorInvert()
+            Color.black.opacity(0.08)
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 ProgressView()
                     .scaleEffect(1.4)
 
@@ -100,9 +257,93 @@ private struct LoadingOverlayView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
             }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, 24)
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Empty state
+// ─────────────────────────────────────────────────────────────────────────────
+
+private struct EmptyStateView: View {
+    let isModelReady: Bool
+    let isModelLoading: Bool
+    let loadingProgress: String
+    let promptSuggestions: [PromptSuggestion]
+    let onPromptTap: (PromptSuggestion) -> Void
+    let onRetry: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(isModelReady ? "Start chatting" : "Preparing the on-device model")
+                        .font(.title3.weight(.semibold))
+
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                if isModelReady {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Try one of these prompts")
+                            .font(.headline)
+
+                        ForEach(promptSuggestions) { suggestion in
+                            Button {
+                                onPromptTap(suggestion)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(suggestion.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text(suggestion.prompt)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .fill(Color.secondary.opacity(0.10))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label(loadingProgress, systemImage: isModelLoading ? "arrow.down.circle" : "exclamationmark.triangle")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        if !isModelLoading {
+                            Button(action: onRetry) {
+                                Label("Retry loading model", systemImage: "arrow.clockwise")
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+        }
+    }
+
+    private var subtitle: String {
+        if isModelReady {
+            return "Your model runs locally on this device. Conversations are restored inside the example app so you can keep iterating while developing the SDK."
+        }
+
+        return "The first launch may take a while because the model has to be downloaded and loaded into memory before the chat UI becomes interactive."
     }
 }
 
@@ -194,6 +435,7 @@ private struct MessageBubble: View {
 private struct InputBarView: View {
     let isSending: Bool
     let isModelReady: Bool
+    let placeholder: String
     let onSend: (String) -> Void
     let onCancel: () -> Void
 
@@ -210,7 +452,7 @@ private struct InputBarView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            TextField("Message…", text: $draftText, axis: .vertical)
+            TextField(placeholder, text: $draftText, axis: .vertical)
                 .lineLimit(1...5)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)

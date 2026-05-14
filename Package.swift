@@ -4,14 +4,14 @@ import PackageDescription
 // ─────────────────────────────────────────────────────────────────────────────
 // Local development
 //
-// When you are working on the Onde Rust crate locally, swap the URL-based
-// binary target below for a path-based one that points at your local XCFramework:
+// When you are working on the Onde Rust crate locally, build a path-based
+// XCFramework into this repository before opening the example app:
 //
-//     name: "OndeFramework"
-//     path: "./../onde/sdk/Onde/OndeFramework.xcframework"
+//   make ios
+//   # or: make macos / make tvos / make visionos / make watchos
 //
-// Build the framework first:
-//   cd onde && .github/scripts/build-swift-xcframework.sh
+// The generated framework lives at:
+//   ./OndeFramework.xcframework
 //
 // Distribution
 //
@@ -35,7 +35,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "OndeFramework",
-            path: "./../onde/sdk/Onde/OndeFramework.xcframework"
+            path: "./OndeFramework.xcframework"
         ),
         .target(
             name: "Onde",

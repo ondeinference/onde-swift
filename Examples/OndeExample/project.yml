@@ -11,6 +11,20 @@ packages:
   Onde:
     path: ../..
 
+schemes:
+  OndeExample:
+    build:
+      targets:
+        OndeExample: all
+    run:
+      config: Debug
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+    profile:
+      config: Release
+
 targets:
   OndeExample:
     type: application
@@ -18,11 +32,13 @@ targets:
     sources:
       - path: .
         excludes:
+          - build
           - project.yml
           - "*.xcodeproj"
     entitlements:
       path: OndeExample.entitlements
       properties:
+        com.apple.developer.kernel.increased-memory-limit: true
         com.apple.security.application-groups:
           - group.com.ondeinference.apps
     dependencies:
@@ -30,7 +46,7 @@ targets:
         product: Onde
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ondeinference.OndeExample
+        PRODUCT_BUNDLE_IDENTIFIER: com.ondeinference.OndeExampleSDKSwift
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: 1
         GENERATE_INFOPLIST_FILE: YES
@@ -38,6 +54,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_VERSION: "6.0"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
       configs:
         Debug:
           SWIFT_OPTIMIZATION_LEVEL: -Onone
