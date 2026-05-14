@@ -1,24 +1,44 @@
 // swift-tools-version:6.2
+import Foundation
 import PackageDescription
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local development
 //
-// When you are working on the Onde Rust crate locally, build a path-based
-// XCFramework into this repository before opening the example app:
+// When you are working on the Onde Rust crate locally, build an XCFramework
+// into this repository before opening the example app:
 //
 //   make ios
 //   # or: make macos / make tvos / make visionos / make watchos
 //
-// The generated framework lives at:
-//   ./OndeFramework.xcframework
+// If `./OndeFramework.xcframework` exists, this manifest uses it automatically.
+// That keeps local SwiftPM and Xcode iterations fast.
 //
 // Distribution
 //
-// CI updates the URL and checksum on every release.
-// Do not edit them by hand. `build-swift-xcframework.yml` rewrites them when
-// a new onde GitHub Release goes out.
+// When the local XCFramework is absent, SwiftPM falls back to the published
+// release asset attached to the matching `onde` GitHub release.
 // ─────────────────────────────────────────────────────────────────────────────
+
+let localFrameworkPath = "./OndeFramework.xcframework"
+let releaseFrameworkURL =
+    "https://github.com/ondeinference/onde/releases/download/1.0.0/OndeFramework.xcframework.zip"
+let releaseFrameworkChecksum =
+    "e50d88a657abe8d5bcc6df9422fa1bae2b2e1855209bbc4f8746ceb97f1ffd3b"
+
+let ondeFrameworkTarget: Target
+if FileManager.default.fileExists(atPath: localFrameworkPath) {
+    ondeFrameworkTarget = .binaryTarget(
+        name: "OndeFramework",
+        path: localFrameworkPath
+    )
+} else {
+    ondeFrameworkTarget = .binaryTarget(
+        name: "OndeFramework",
+        url: releaseFrameworkURL,
+        checksum: releaseFrameworkChecksum
+    )
+}
 
 let package = Package(
     name: "Onde",
@@ -33,10 +53,7 @@ let package = Package(
         .library(name: "Onde", targets: ["Onde"])
     ],
     targets: [
-        .binaryTarget(
-            name: "OndeFramework",
-            path: "./OndeFramework.xcframework"
-        ),
+        ondeFrameworkTarget,
         .target(
             name: "Onde",
             dependencies: [.target(name: "OndeFramework")],
