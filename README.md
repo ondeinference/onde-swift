@@ -137,6 +137,32 @@ private func setupHfCache(at base: URL) {
 }
 ```
 
+## Local Development
+
+For local SDK work, keep `onde-swift` next to the Rust repo:
+
+```text
+Repositories/
+├── onde/
+└── onde-swift/
+```
+
+Then from the `onde-swift` root:
+
+```bash
+make ios
+```
+
+That builds the local Rust core from `../onde`, regenerates `Sources/Onde/onde.swift`, and writes `OndeFramework.xcframework` into the package root so Xcode and SwiftPM can link it.
+
+To work on the example iOS app:
+
+```bash
+cd Examples/OndeExample
+xcodegen generate
+open OndeExample.xcodeproj
+```
+
 ## Documentation
 
 - [on-device AI inference for iOS and macOS](https://ondeinference.com/sdk/swift)

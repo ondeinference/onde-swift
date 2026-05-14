@@ -1,31 +1,33 @@
 // swift-tools-version:6.2
 import PackageDescription
 
-// LOCAL DEVELOPMENT
+// ─────────────────────────────────────────────────────────────────────────────
+// Local development
 //
-// When you are working on the Onde Rust crate locally, swap the URL-based
-// binary target below for a path-based one that points at your local XCFramework:
+// When you are working on the Onde Rust crate locally, build a path-based
+// XCFramework into this repository before opening the example app:
 //
-//     name: "OndeFramework"
-//     path: "./../onde/sdk/Onde/OndeFramework.xcframework"
+//   make ios
+//   # or: make macos / make tvos / make visionos / make watchos
 //
-// Build the framework first:
-//   cd onde && .github/scripts/build-swift-xcframework.sh
+// The generated framework lives at:
+//   ./OndeFramework.xcframework
 //
-// DISTRIBUTION
+// Distribution
 //
 // CI updates the URL and checksum on every release.
 // Do not edit them by hand. `build-swift-xcframework.yml` rewrites them when
 // a new onde GitHub Release goes out.
+// ─────────────────────────────────────────────────────────────────────────────
 
 let package = Package(
     name: "Onde",
     platforms: [
-        .iOS(.v15),
-        .macOS(.v11),
-        .tvOS(.v15),
-        .visionOS(.v26),
-        .watchOS(.v10),
+        .iOS(.v16),
+        .macOS(.v14),
+        .tvOS(.v16),
+        .visionOS(.v1),
+        .watchOS(.v9),
     ],
     products: [
         .library(name: "Onde", targets: ["Onde"])
@@ -33,8 +35,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "OndeFramework",
-            url: "https://github.com/ondeinference/onde/releases/download/1.0.0/OndeFramework.xcframework.zip",
-            checksum: "e50d88a657abe8d5bcc6df9422fa1bae2b2e1855209bbc4f8746ceb97f1ffd3b"
+            path: "./OndeFramework.xcframework"
         ),
         .target(
             name: "Onde",
