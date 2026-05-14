@@ -2,6 +2,7 @@
 .local/
 .build/
 .swiftpm/
+build/
 OndeFramework.xcframework/
 OndeFramework.xcframework.zip
 
