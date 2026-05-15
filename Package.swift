@@ -20,25 +20,26 @@ import PackageDescription
 // release asset attached to the matching `onde` GitHub release.
 // ─────────────────────────────────────────────────────────────────────────────
 
-let localFrameworkPath = "./OndeFramework.xcframework"
+let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let localFrameworkPath = "OndeFramework.xcframework"
+let localFrameworkAbsolutePath = packageRoot.appendingPathComponent(localFrameworkPath).path
 let releaseFrameworkURL =
-    "https://github.com/ondeinference/onde/releases/download/1.0.0/OndeFramework.xcframework.zip"
+    "https://github.com/ondeinference/onde/releases/download/1.1.0/OndeFramework.xcframework.zip"
 let releaseFrameworkChecksum =
-    "e50d88a657abe8d5bcc6df9422fa1bae2b2e1855209bbc4f8746ceb97f1ffd3b"
+    "088997d8bdb363384940d64c80d8c357c47349ac571225692442762ea9eac300"
 
 let ondeFrameworkTarget: Target
-if FileManager.default.fileExists(atPath: localFrameworkPath) {
+if FileManager.default.fileExists(atPath: localFrameworkAbsolutePath) {
     ondeFrameworkTarget = .binaryTarget(
-            name: "OndeFramework",
-            url: "https://github.com/ondeinference/onde/releases/download/1.1.0/OndeFramework.xcframework.zip",
-            checksum: "088997d8bdb363384940d64c80d8c357c47349ac571225692442762ea9eac300"
-        )
+        name: "OndeFramework",
+        path: localFrameworkPath
+    )
 } else {
     ondeFrameworkTarget = .binaryTarget(
-            name: "OndeFramework",
-            url: "https://github.com/ondeinference/onde/releases/download/1.1.0/OndeFramework.xcframework.zip",
-            checksum: "088997d8bdb363384940d64c80d8c357c47349ac571225692442762ea9eac300"
-        )
+        name: "OndeFramework",
+        url: releaseFrameworkURL,
+        checksum: releaseFrameworkChecksum
+    )
 }
 
 let package = Package(
