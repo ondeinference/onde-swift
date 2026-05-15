@@ -29,15 +29,16 @@ let releaseFrameworkChecksum =
 let ondeFrameworkTarget: Target
 if FileManager.default.fileExists(atPath: localFrameworkPath) {
     ondeFrameworkTarget = .binaryTarget(
-        name: "OndeFramework",
-        path: localFrameworkPath
-    )
+            name: "OndeFramework",
+            url: "https://github.com/ondeinference/onde/releases/download/1.1.0/OndeFramework.xcframework.zip",
+            checksum: "088997d8bdb363384940d64c80d8c357c47349ac571225692442762ea9eac300"
+        )
 } else {
     ondeFrameworkTarget = .binaryTarget(
-        name: "OndeFramework",
-        url: releaseFrameworkURL,
-        checksum: releaseFrameworkChecksum
-    )
+            name: "OndeFramework",
+            url: "https://github.com/ondeinference/onde/releases/download/1.1.0/OndeFramework.xcframework.zip",
+            checksum: "088997d8bdb363384940d64c80d8c357c47349ac571225692442762ea9eac300"
+        )
 }
 
 let package = Package(
