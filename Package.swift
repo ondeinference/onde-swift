@@ -24,9 +24,9 @@ let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let localFrameworkPath = "OndeFramework.xcframework"
 let localFrameworkAbsolutePath = packageRoot.appendingPathComponent(localFrameworkPath).path
 let releaseFrameworkURL =
-    "https://github.com/ondeinference/onde/releases/download/1.1.0/OndeFramework.xcframework.zip"
+    "https://github.com/ondeinference/onde/releases/download/1.1.1/OndeFramework.xcframework.zip"
 let releaseFrameworkChecksum =
-    "088997d8bdb363384940d64c80d8c357c47349ac571225692442762ea9eac300"
+    "477623ec242d45dbfe54d3f8e36375193c1933721ffc4d3f002f66fa3065ebea"
 
 let ondeFrameworkTarget: Target
 if FileManager.default.fileExists(atPath: localFrameworkAbsolutePath) {
