@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ondeinference/onde/main/assets/onde-inference-logo.svg" alt="Onde Inference" width="96">
+  <img src="https://raw.githubusercontent.com/ondeinference/onde/refs/heads/development/assets/onde-inference-logo.svg" alt="Onde Inference" width="96">
 </p>
 
 <h1 align="center">Onde Inference</h1>
@@ -181,4 +181,4 @@ Onde is dual-licensed under **MIT** and **Apache 2.0**. You can use either one.
 
 ## Copyright
 
-© 2026 [Onde Inference](https://ondeinference.com) (Splitfire AB).
+© 2026 [Splitfire AB](https://5mb.app) ([Onde Inference](https://ondeinference.com)).
