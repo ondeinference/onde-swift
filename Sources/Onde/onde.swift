@@ -2697,6 +2697,25 @@ public func assistantMessage(content: String) -> ChatMessage  {
 })
 }
 /**
+ * Configure the HF cache directory for sandboxed platforms.
+ *
+ * Call this before any model-loading method (`load_gguf_model`,
+ * `load_default_model`, etc.) on iOS, tvOS, and Android where the
+ * default `~/.cache/huggingface` path is inaccessible.
+ *
+ * `path` should be a writable app data directory (e.g. the App Group
+ * container or Application Support directory on Apple platforms).
+ *
+ * This sets the `HF_HOME` and `HF_HUB_CACHE` environment variables
+ * and creates the directory structure.
+ */
+public func configureCacheDir(path: String)  {try! rustCall() {
+    uniffi_onde_fn_func_configure_cache_dir(
+        FfiConverterString.lower(path),$0
+    )
+}
+}
+/**
  * Return the platform-appropriate default GGUF model configuration.
  *
  * - tvOS / iOS / Android → Qwen 2.5 1.5B (~941 MB)
@@ -2732,6 +2751,15 @@ public func deterministicSamplingConfig() -> SamplingConfig  {
 public func mobileSamplingConfig() -> SamplingConfig  {
     return try!  FfiConverterTypeSamplingConfig_lift(try! rustCall() {
     uniffi_onde_fn_func_mobile_sampling_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 2.5 0.5B GGUF model configuration (~380 MB).
+ */
+public func qwen2505bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen25_0_5b_config($0
     )
 })
 }
@@ -2835,6 +2863,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_onde_checksum_func_assistant_message() != 47135) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_onde_checksum_func_configure_cache_dir() != 6269) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_onde_checksum_func_default_model_config() != 34766) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2845,6 +2876,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_func_mobile_sampling_config() != 46137) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen25_0_5b_config() != 53289) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_func_qwen25_1_5b_config() != 41668) {
