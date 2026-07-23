@@ -2782,6 +2782,91 @@ public func qwen253bConfig() -> GgufModelConfig  {
 })
 }
 /**
+ * Return the Qwen 3 0.6B GGUF model configuration (~0.5 GB).
+ */
+public func qwen306bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_0_6b_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 14B GGUF model configuration (~8.4 GB).
+ */
+public func qwen314bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_14b_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 1.7B GGUF model configuration (~1.3 GB).
+ */
+public func qwen317bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_1_7b_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 30B-A3B Instruct 2507 (MoE) GGUF model configuration (~18.6 GB).
+ */
+public func qwen330bA3bInstruct2507Config() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_30b_a3b_instruct_2507_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 32B GGUF model configuration (~19.8 GB).
+ */
+public func qwen332bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_32b_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 4B GGUF model configuration (~2.7 GB).
+ */
+public func qwen34bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_4b_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 4B Instruct 2507 GGUF model configuration (~2.5 GB).
+ *
+ * Latest non-thinking 4B checkpoint — recommended general-purpose Qwen 3 model.
+ */
+public func qwen34bInstruct2507Config() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_4b_instruct_2507_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 4B Thinking 2507 GGUF model configuration (~2.5 GB).
+ *
+ * Latest reasoning-focused 4B checkpoint; load with `max_tokens ≥ 4096`.
+ */
+public func qwen34bThinking2507Config() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_4b_thinking_2507_config($0
+    )
+})
+}
+/**
+ * Return the Qwen 3 8B GGUF model configuration (~5 GB).
+ */
+public func qwen38bConfig() -> GgufModelConfig  {
+    return try!  FfiConverterTypeGgufModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_qwen3_8b_config($0
+    )
+})
+}
+/**
  * Stream a chat message through the engine, delivering token chunks to
  * the `listener` callback.
  *
@@ -2885,6 +2970,33 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_func_qwen25_3b_config() != 36458) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_0_6b_config() != 20653) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_14b_config() != 44701) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_1_7b_config() != 32382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_30b_a3b_instruct_2507_config() != 55315) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_32b_config() != 20244) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_4b_config() != 44102) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_4b_instruct_2507_config() != 20415) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_4b_thinking_2507_config() != 9987) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_func_qwen3_8b_config() != 16355) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_func_stream_chat_message() != 5168) {
