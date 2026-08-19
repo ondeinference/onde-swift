@@ -633,6 +633,18 @@ public protocol OndeChatEngineProtocol: AnyObject, Sendable {
     func loadGgufModel(config: GgufModelConfig, systemPrompt: String?, sampling: SamplingConfig?) async throws  -> Double
     
     /**
+     * Load a UQFF model into the engine.
+     *
+     * UQFF files are pre-quantised and load directly without runtime
+     * conversion. `config.model_id` names the UQFF export (not the original
+     * unquantised repo), and `config.files` should contain the first UQFF
+     * shard or explicit shard filenames.
+     *
+     * Returns the wall-clock loading time in seconds.
+     */
+    func loadUqffModel(config: UqffModelConfig, systemPrompt: String?, sampling: SamplingConfig?) async throws  -> Double
+    
+    /**
      * Append a message to history without running inference.
      */
     func pushHistory(message: ChatMessage) async 
@@ -933,6 +945,33 @@ open func loadGgufModel(config: GgufModelConfig, systemPrompt: String?, sampling
                 uniffi_onde_fn_method_ondechatengine_load_gguf_model(
                     self.uniffiCloneHandle(),
                     FfiConverterTypeGgufModelConfig_lower(config),FfiConverterOptionString.lower(systemPrompt),FfiConverterOptionTypeSamplingConfig.lower(sampling)
+                )
+            },
+            pollFunc: ffi_onde_rust_future_poll_f64,
+            completeFunc: ffi_onde_rust_future_complete_f64,
+            freeFunc: ffi_onde_rust_future_free_f64,
+            liftFunc: FfiConverterDouble.lift,
+            errorHandler: FfiConverterTypeInferenceError_lift
+        )
+}
+    
+    /**
+     * Load a UQFF model into the engine.
+     *
+     * UQFF files are pre-quantised and load directly without runtime
+     * conversion. `config.model_id` names the UQFF export (not the original
+     * unquantised repo), and `config.files` should contain the first UQFF
+     * shard or explicit shard filenames.
+     *
+     * Returns the wall-clock loading time in seconds.
+     */
+open func loadUqffModel(config: UqffModelConfig, systemPrompt: String?, sampling: SamplingConfig?)async throws  -> Double  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_onde_fn_method_ondechatengine_load_uqff_model(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeUqffModelConfig_lower(config),FfiConverterOptionString.lower(systemPrompt),FfiConverterOptionTypeSamplingConfig.lower(sampling)
                 )
             },
             pollFunc: ffi_onde_rust_future_poll_f64,
@@ -1991,6 +2030,127 @@ public func FfiConverterTypeToolResult_lower(_ value: ToolResult) -> RustBuffer 
     return FfiConverterTypeToolResult.lower(value)
 }
 
+
+/**
+ * Configuration for loading a UQFF model via mistral.rs
+ * `UqffTextModelBuilder`.
+ *
+ * UQFF files store pre-quantised weights and load directly
+ * without the runtime memory spike of in-situ quantisation.  `model_id` points
+ * at the UQFF *export* — the directory or repository holding the shards
+ * alongside `residual.safetensors`, `config.json`, and the tokenizer — and
+ * `files` identifies the first UQFF shard or explicit UQFF shard files.
+ *
+ * Note that `model_id` is **not** the original unquantised model repository:
+ * mistral.rs resolves the shards, the residual weights, and the JSON assets by
+ * sibling lookup next to `model_id`, so pointing it at the source repo fails
+ * with a missing-file error. A UQFF export is self-contained by design.
+ */
+public struct UqffModelConfig: Equatable, Hashable {
+    /**
+     * HuggingFace repository ID or local directory of the UQFF export, e.g.
+     * `"mistralrs-community/gemma-4-E4B-it-UQFF"`.
+     */
+    public var modelId: String
+    /**
+     * UQFF filename(s) within the repository. For sharded UQFFs, passing the
+     * first shard, e.g. `["q4k-0.uqff"]`, is enough for mistral.rs to discover
+     * siblings. Numeric and ISQ-name shorthands such as `"4"` and `"q4k"` are
+     * also accepted by the underlying loader.
+     */
+    public var files: [String]
+    /**
+     * Human-friendly display name, e.g. `"Gemma 4 E4B (UQFF Q4K)"`.
+     */
+    public var displayName: String
+    /**
+     * Approximate memory footprint description, e.g. `"~2.5 GB (UQFF Q4K)"`.
+     */
+    public var approxMemory: String
+    /**
+     * Optional Jinja chat template string. When set, this overrides the
+     * template resolved from the base model.
+     */
+    public var chatTemplate: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * HuggingFace repository ID or local directory of the UQFF export, e.g.
+         * `"mistralrs-community/gemma-4-E4B-it-UQFF"`.
+         */modelId: String, 
+        /**
+         * UQFF filename(s) within the repository. For sharded UQFFs, passing the
+         * first shard, e.g. `["q4k-0.uqff"]`, is enough for mistral.rs to discover
+         * siblings. Numeric and ISQ-name shorthands such as `"4"` and `"q4k"` are
+         * also accepted by the underlying loader.
+         */files: [String], 
+        /**
+         * Human-friendly display name, e.g. `"Gemma 4 E4B (UQFF Q4K)"`.
+         */displayName: String, 
+        /**
+         * Approximate memory footprint description, e.g. `"~2.5 GB (UQFF Q4K)"`.
+         */approxMemory: String, 
+        /**
+         * Optional Jinja chat template string. When set, this overrides the
+         * template resolved from the base model.
+         */chatTemplate: String?) {
+        self.modelId = modelId
+        self.files = files
+        self.displayName = displayName
+        self.approxMemory = approxMemory
+        self.chatTemplate = chatTemplate
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UqffModelConfig: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUqffModelConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UqffModelConfig {
+        return
+            try UqffModelConfig(
+                modelId: FfiConverterString.read(from: &buf), 
+                files: FfiConverterSequenceString.read(from: &buf), 
+                displayName: FfiConverterString.read(from: &buf), 
+                approxMemory: FfiConverterString.read(from: &buf), 
+                chatTemplate: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UqffModelConfig, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.modelId, into: &buf)
+        FfiConverterSequenceString.write(value.files, into: &buf)
+        FfiConverterString.write(value.displayName, into: &buf)
+        FfiConverterString.write(value.approxMemory, into: &buf)
+        FfiConverterOptionString.write(value.chatTemplate, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUqffModelConfig_lift(_ buf: RustBuffer) throws -> UqffModelConfig {
+    return try FfiConverterTypeUqffModelConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUqffModelConfig_lower(_ value: UqffModelConfig) -> RustBuffer {
+    return FfiConverterTypeUqffModelConfig.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -2920,6 +3080,26 @@ public func systemMessage(content: String) -> ChatMessage  {
 })
 }
 /**
+ * Create a generic UQFF model configuration.
+ *
+ * `model_id` is the HuggingFace repo or local directory of the UQFF export
+ * (the shards plus `residual.safetensors`, `config.json`, and the tokenizer),
+ * not the original unquantised repo. `files` accepts a first shard
+ * (`q4k-0.uqff`), explicit shards, or mistral.rs shorthands such as `q4k`
+ * and `4`.
+ */
+public func uqffModelConfig(modelId: String, files: [String], displayName: String, approxMemory: String, chatTemplate: String?) -> UqffModelConfig  {
+    return try!  FfiConverterTypeUqffModelConfig_lift(try! rustCall() {
+    uniffi_onde_fn_func_uqff_model_config(
+        FfiConverterString.lower(modelId),
+        FfiConverterSequenceString.lower(files),
+        FfiConverterString.lower(displayName),
+        FfiConverterString.lower(approxMemory),
+        FfiConverterOptionString.lower(chatTemplate),$0
+    )
+})
+}
+/**
  * Create a user message.
  */
 public func userMessage(content: String) -> ChatMessage  {
@@ -3005,6 +3185,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_onde_checksum_func_system_message() != 55655) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_onde_checksum_func_uqff_model_config() != 61694) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_onde_checksum_func_user_message() != 23108) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3033,6 +3216,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_method_ondechatengine_load_gguf_model() != 6873) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_onde_checksum_method_ondechatengine_load_uqff_model() != 18211) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_onde_checksum_method_ondechatengine_push_history() != 61696) {
